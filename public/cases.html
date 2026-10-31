@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>案件 - 案卷研判</title>
+  <link rel="stylesheet" href="/app.css">
+  <script src="/app.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-nav-shell">
+      <a class="brand" href="/cases"><span class="brand-mark">律</span><span>案卷研判</span></a>
+      <nav class="app-nav" aria-label="主导航">
+        <a href="/cases" data-nav-path="/cases">案件</a>
+        <a href="/documents" data-nav-path="/documents">全部文书</a>
+        <a href="/samples" data-nav-path="/samples">样本</a>
+        <a href="/settings" data-nav-path="/settings">模型</a>
+      </nav>
+      <div class="nav-actions">
+        <button class="theme-toggle" type="button" data-theme-toggle>
+          <span class="theme-option theme-option-light">浅色</span>
+          <span class="theme-option theme-option-dark">深色</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="case-hero">
+      <div class="page-intro">
+        <p class="page-kicker">刑事案卷内部研判</p>
+        <h1>从案卷材料，到可核验的研判线索。</h1>
+        <p>上传已经脱敏的案卷，系统分批提取时间、人物、事件与证据候选。所有结果均需律师结合原文确认。</p>
+      </div>
+      <div class="case-guardrail">
+        <span class="case-guardrail-mark">仅</span>
+        <div><strong>只上传已脱敏材料</strong><p>原始临时文件在提取完成后删除；模型只接收必要文字片段。</p></div>
+      </div>
+    </section>
+
+    <div class="case-create-grid">
+      <section class="surface case-create-panel">
+        <div class="panel-title"><h2>新建案件</h2><p>案件名称和材料上传完成后，将自动进入后台分批解析。</p></div>
+        <form id="caseForm">
+          <div class="form-grid">
+            <div class="field"><label for="caseName">案件名称</label><input id="caseName" type="text" required placeholder="例如：李某涉嫌诈骗案"></div>
+            <div class="field"><label for="caseModel">分析模型</label><select id="caseModel"><option value="deepseek">DeepSeek</option></select></div>
+          </div>
+          <div class="field">
+            <label for="caseFiles">案卷材料</label>
+            <label class="case-dropzone" for="caseFiles">
+              <span class="case-dropzone-title">选择 PDF、DOCX 或 TXT 文件</span>
+              <span>支持一次选择多份材料，超长案卷将自动分批解析</span>
+              <span class="case-limit-copy">单文件最大 100MB · 单案件最多 500份 · 文件合计最大 2GB</span>
+            </label>
+            <input id="caseFiles" class="visually-hidden-input" type="file" accept=".pdf,.docx,.txt" multiple required>
+            <div id="fileSelection" class="file-selection">尚未选择材料</div>
+          </div>
+          <div class="field"><label for="draftingRequirements">研判与文书要求</label><textarea id="draftingRequirements" class="requirements-input" placeholder="例如：重点核对涉案金额、言词证据矛盾、取证程序，并为审查起诉阶段法律意见书准备依据。"></textarea></div>
+          <label class="confirm confirm-critical"><input id="redactedConfirm" type="checkbox" aria-describedby="redactionWarning"><span><strong>脱敏确认</strong>：我确认上传材料已经完成必要脱敏，仅用于律所内部研判。<small id="redactionWarning">未确认将停止创建、上传与分析。</small></span></label>
+          <div class="actions"><button id="createCaseButton" class="primary" type="submit">创建并上传</button><span id="uploadStatus" class="result"></span></div>
+          <div id="uploadProgress" class="upload-progress" hidden><div id="uploadProgressBar" class="upload-progress-bar"></div></div>
+          <div id="fileProgressList" class="file-progress-list"></div>
+        </form>
+      </section>
+
+      <aside class="case-process-map" aria-label="处理流程">
+        <div class="process-step"><span>01</span><div><strong>材料提取</strong><p>逐份识别正文，扫描件会标记为需 OCR。</p></div></div>
+        <div class="process-step"><span>02</span><div><strong>分级研判</strong><p>按片段、文件、整案逐级汇总，避免一次塞入全部案卷。</p></div></div>
+        <div class="process-step"><span>03</span><div><strong>律师核验</strong><p>时间轴、关系和证据均显示来源，律师确认前都是候选。</p></div></div>
+      </aside>
+    </div>
+
+    <section class="case-list-section">
+      <div class="page-section-heading"><div><h2>最近案件</h2><p>继续查看研判进度、关系图和法律文书。</p></div></div>
+      <div id="caseList" class="case-list"><div class="empty-state">暂无数据</div></div>
+    </section>
+  </main>
+  <script src="/cases.js"></script>
+</body>
+</html>

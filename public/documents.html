@@ -1,0 +1,864 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>文书工作台 - 案卷研判</title>
+  <script>
+(function () {
+  const storageKey = 'law-case-theme';
+  const savedTheme = localStorage.getItem(storageKey);
+  const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+  function applyTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
+    document.querySelectorAll('[data-theme-toggle]').forEach((button) => {
+      button.setAttribute('aria-label', theme === 'dark' ? '切换到浅色模式' : '切换到深色模式');
+      button.setAttribute('aria-pressed', String(theme === 'dark'));
+    });
+  }
+
+  applyTheme(savedTheme || (systemDark ? 'dark' : 'light'));
+
+  document.addEventListener('DOMContentLoaded', () => {
+    applyTheme(document.documentElement.dataset.theme);
+
+    document.querySelectorAll('[data-theme-toggle]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+        localStorage.setItem(storageKey, next);
+        applyTheme(next);
+      });
+    });
+
+    const currentPath = window.location.pathname === '/' ? '/settings' : window.location.pathname;
+    document.querySelectorAll('[data-nav-path]').forEach((link) => {
+      if (link.dataset.navPath === currentPath) link.setAttribute('aria-current', 'page');
+    });
+  });
+})();
+
+</script>
+  <style>
+:root {
+  --page: #f5f5f7;
+  --page-glow: rgba(0, 113, 227, 0.09);
+  --surface: rgba(255, 255, 255, 0.82);
+  --surface-solid: #fbfbfd;
+  --surface-muted: #f0f0f2;
+  --text: #1d1d1f;
+  --text-muted: #6e6e73;
+  --line: rgba(29, 29, 31, 0.12);
+  --line-strong: rgba(29, 29, 31, 0.2);
+  --accent: #0071e3;
+  --accent-hover: #0077ed;
+  --accent-soft: rgba(0, 113, 227, 0.1);
+  --success: #248a3d;
+  --success-soft: rgba(36, 138, 61, 0.11);
+  --warning: #9a6700;
+  --warning-soft: rgba(154, 103, 0, 0.11);
+  --danger: #d70015;
+  --danger-soft: rgba(215, 0, 21, 0.09);
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.08);
+  --radius: 18px;
+  --radius-small: 12px;
+  --font: "SF Pro Text", "SF Pro Display", "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+}
+
+:root[data-theme='dark'] {
+  --page: #101012;
+  --page-glow: rgba(10, 132, 255, 0.13);
+  --surface: rgba(30, 30, 32, 0.82);
+  --surface-solid: #1c1c1e;
+  --surface-muted: #252527;
+  --text: #f5f5f7;
+  --text-muted: #a1a1a6;
+  --line: rgba(245, 245, 247, 0.12);
+  --line-strong: rgba(245, 245, 247, 0.2);
+  --accent: #0a84ff;
+  --accent-hover: #409cff;
+  --accent-soft: rgba(10, 132, 255, 0.16);
+  --success: #30d158;
+  --success-soft: rgba(48, 209, 88, 0.13);
+  --warning: #ffd60a;
+  --warning-soft: rgba(255, 214, 10, 0.12);
+  --danger: #ff453a;
+  --danger-soft: rgba(255, 69, 58, 0.13);
+  --shadow: 0 22px 60px rgba(0, 0, 0, 0.32);
+}
+
+* { box-sizing: border-box; }
+html { min-width: 320px; background: var(--page); }
+body {
+  min-height: 100dvh;
+  margin: 0;
+  overflow-x: hidden;
+  color: var(--text);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  background:
+    radial-gradient(circle at 12% -10%, var(--page-glow), transparent 30rem),
+    radial-gradient(circle at 92% 6%, rgba(128, 128, 128, 0.06), transparent 22rem),
+    var(--page);
+}
+button, input, select, textarea { font: inherit; }
+button, a { -webkit-tap-highlight-color: transparent; }
+a { color: inherit; }
+code { font-family: "SFMono-Regular", Consolas, monospace; font-size: 0.92em; }
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--page) 78%, transparent);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+}
+.app-nav-shell {
+  width: min(1180px, calc(100% - 40px));
+  height: 68px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 24px;
+}
+.brand { display: inline-flex; align-items: center; gap: 10px; width: fit-content; text-decoration: none; font-size: 15px; font-weight: 650; letter-spacing: -0.01em; }
+.brand-mark {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 9px;
+  color: #f7fbff;
+  background: linear-gradient(145deg, #1b84ee, #0066cc);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  font-size: 14px;
+}
+.app-nav { display: flex; align-items: center; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-muted); }
+.app-nav a { padding: 8px 15px; border-radius: 999px; color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 650; transition: color 160ms ease, background 160ms ease, box-shadow 160ms ease; white-space: nowrap; }
+.app-nav a:hover { color: var(--accent); background: var(--accent-soft); }
+.app-nav a[aria-current='page'] { color: #f7fbff; background: var(--accent); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent); }
+.nav-actions { display: flex; justify-content: flex-end; }
+.theme-toggle {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  min-width: 118px;
+  min-height: 38px;
+  padding: 3px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  color: var(--text);
+  background: var(--surface-muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+.theme-option { display: grid; min-height: 30px; padding: 0 10px; place-items: center; border-radius: 999px; color: var(--text-muted); transition: color 160ms ease, background 160ms ease, box-shadow 160ms ease; }
+:root[data-theme='light'] .theme-option-light, :root[data-theme='dark'] .theme-option-dark { color: #f7fbff; background: var(--accent); box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 30%, transparent); }
+.theme-toggle:hover { border-color: var(--accent); }
+.theme-toggle:active { transform: scale(0.97); }
+
+.page-shell { width: min(1180px, calc(100% - 40px)); margin: 0 auto; padding: 66px 0 80px; }
+.page-shell.narrow { width: min(920px, calc(100% - 40px)); }
+.page-intro { max-width: 760px; margin-bottom: 34px; animation: page-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.page-kicker { margin: 0 0 10px; color: var(--accent); font-size: 13px; font-weight: 650; }
+.page-intro h1 { margin: 0; font-size: clamp(34px, 5vw, 54px); line-height: 1.08; letter-spacing: -0.045em; font-weight: 720; }
+.page-intro p { max-width: 620px; margin: 16px 0 0; color: var(--text-muted); font-size: 17px; line-height: 1.65; }
+.page-section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
+.page-section-heading h2, .panel-title h2, legend { margin: 0; font-size: 23px; line-height: 1.2; letter-spacing: -0.025em; font-weight: 680; }
+.page-section-heading p, .panel-title p { margin: 7px 0 0; color: var(--text-muted); line-height: 1.55; }
+
+.surface, .card, .section-card, .doc-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(22px) saturate(130%);
+  -webkit-backdrop-filter: blur(22px) saturate(130%);
+}
+.surface { padding: 28px; }
+.two-column { display: grid; grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr); gap: 24px; align-items: start; }
+.stack { display: grid; gap: 22px; }
+.tabs { display: inline-flex; gap: 4px; margin-bottom: 24px; padding: 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-muted); }
+.tab { padding: 9px 18px; border-radius: 999px; color: var(--text-muted); cursor: pointer; font-size: 14px; font-weight: 650; transition: color 160ms ease, background 160ms ease, box-shadow 160ms ease; }
+.tab:hover { color: var(--accent); background: var(--accent-soft); }
+.tab.active { color: #f7fbff; background: var(--accent); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 28%, transparent); }
+.panel { display: none; animation: content-in 300ms ease both; }
+.panel.active { display: block; }
+.panel-title { margin-bottom: 24px; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.form-group, .field { margin-bottom: 18px; }
+.form-group label, .field label { display: block; margin: 0 0 8px; color: var(--text); font-size: 13px; font-weight: 620; }
+.hint { margin-top: 7px; color: var(--text-muted); font-size: 12px; line-height: 1.55; }
+input:not([type]), input[type='text'], input[type='password'], input[type='file'], select, textarea, .feedback-input {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-small);
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-solid) 88%, transparent);
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+input:not([type]), input[type='text'], input[type='password'], input[type='file'], select, .feedback-input { min-height: 46px; padding: 10px 13px; }
+textarea { min-height: 220px; padding: 13px 14px; line-height: 1.7; resize: vertical; }
+.upload-box { display: grid; gap: 10px; padding: 18px; border: 1.5px dashed color-mix(in srgb, var(--accent) 55%, var(--line)); border-radius: var(--radius-small); background: var(--accent-soft); }
+.upload-box input[type='file'] { min-height: auto; padding: 0; border: 0; background: transparent; }
+.upload-title { color: var(--text); font-size: 14px; font-weight: 680; }
+.file-status { color: var(--accent); font-size: 12px; font-weight: 650; }
+.requirements-input { min-height: 132px; }
+.case-content-input { min-height: 150px; }
+input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--text-muted) 82%, transparent); }
+input:focus, select:focus, textarea:focus, .feedback-input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); background: var(--surface-solid); }
+input:disabled, select:disabled, textarea:disabled, button:disabled { opacity: 0.52; cursor: not-allowed; }
+input[type='radio'], input[type='checkbox'] { accent-color: var(--accent); }
+.confirm { display: flex; align-items: flex-start; gap: 10px; color: var(--text-muted); font-size: 13px; line-height: 1.55; }
+.confirm input { flex: 0 0 auto; width: 18px; height: 18px; margin-top: 1px; }
+.actions, .row, .section-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.actions { margin-top: 22px; }
+.download-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.download-actions select { width: auto; min-width: 112px; min-height: 42px; padding: 8px 34px 8px 13px; border-radius: 999px; }
+
+button, .btn {
+  min-height: 42px;
+  padding: 9px 17px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  color: var(--text);
+  background: var(--surface-solid);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 620;
+  line-height: 1;
+  white-space: nowrap;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+button:hover, .btn:hover { border-color: var(--line-strong); background: var(--surface-muted); }
+button:active, .btn:active { transform: scale(0.98); }
+button:focus-visible, .btn:focus-visible, a:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 2px; }
+.primary, .btn-primary, .btn-success { border-color: var(--accent); color: #f7fbff; background: var(--accent); }
+.primary:hover, .btn-primary:hover, .btn-success:hover { border-color: var(--accent-hover); color: #f7fbff; background: var(--accent-hover); }
+.btn-secondary { color: var(--text); background: transparent; }
+.btn-warning { border-color: var(--line-strong); color: var(--text); background: var(--surface-solid); }
+.btn-danger { border-color: transparent; color: var(--danger); background: var(--danger-soft); }
+.btn-danger:hover { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }
+
+.doc-list, .section-list { display: grid; gap: 14px; }
+.doc-card { padding: 20px 22px; cursor: pointer; box-shadow: none; transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease; }
+.doc-card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: var(--shadow); }
+.doc-card-header, .section-header, .edit-header, .head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.doc-card-header { margin-bottom: 10px; }
+.doc-type, .section-title, .s-title { color: var(--text); font-size: 15px; font-weight: 670; }
+.doc-meta, .s-meta, .url { color: var(--text-muted); font-size: 12px; line-height: 1.6; }
+.doc-status, .section-state, .badge, .tag { display: inline-flex; align-items: center; padding: 5px 9px; border-radius: 999px; font-size: 11px; font-weight: 650; white-space: nowrap; }
+.status-draft, .state-pending { color: var(--warning); background: var(--warning-soft); }
+.status-reviewing { color: var(--accent); background: var(--accent-soft); }
+.status-completed, .state-confirmed, .badge.on { color: var(--success); background: var(--success-soft); }
+.badge.default, .tag { color: var(--accent); background: var(--accent-soft); }
+.edit-view { display: none; }
+.edit-header { margin-bottom: 22px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+.section-card { padding: 22px; box-shadow: none; }
+.section-header { margin-bottom: 14px; }
+.section-content { margin-bottom: 16px; padding: 18px; border: 1px solid var(--line); border-radius: var(--radius-small); color: var(--text); background: var(--surface-solid); white-space: pre-wrap; line-height: 1.82; }
+.feedback-input { flex: 1 1 320px; }
+.history-toggle { display: inline-block; margin-top: 14px; color: var(--accent); cursor: pointer; font-size: 12px; font-weight: 620; }
+.history-list { display: none; margin-top: 10px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius-small); color: var(--text-muted); background: var(--surface-muted); font-size: 12px; line-height: 1.65; }
+.history-item + .history-item { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+
+.card { padding: 24px; box-shadow: none; }
+.card.active { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+fieldset { display: grid; gap: 14px; margin: 0; padding: 0; border: 0; }
+legend { margin-bottom: 20px; }
+.head { justify-content: flex-start; }
+.head label { margin-right: auto; font-size: 18px; font-weight: 680; cursor: pointer; }
+.provider-toggle { display: inline-flex; align-items: center; gap: 8px; padding: 5px 8px 5px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px; font-weight: 700; }
+.provider-toggle.enabled { border-color: color-mix(in srgb, var(--success) 44%, transparent); color: var(--success); background: var(--success-soft); }
+.provider-toggle.disabled { border-color: color-mix(in srgb, var(--danger) 34%, transparent); color: var(--danger); background: var(--danger-soft); }
+.switch { position: relative; display: inline-flex; width: 42px; height: 24px; flex: 0 0 auto; }
+.switch input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.switch-track { width: 100%; height: 100%; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--surface-muted); transition: background 160ms ease, border-color 160ms ease; }
+.switch-track::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--surface-solid); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22); transition: transform 160ms ease; }
+.switch input:not(:checked) + .switch-track { border-color: color-mix(in srgb, var(--danger) 35%, var(--line)); background: color-mix(in srgb, var(--danger) 20%, var(--surface-muted)); }
+.switch input:checked + .switch-track { border-color: var(--success); background: var(--success); }
+.switch input:checked + .switch-track::after { transform: translateX(18px); }
+.switch input:focus-visible + .switch-track { outline: 3px solid var(--accent-soft); outline-offset: 2px; }
+.card.disabled { border-color: color-mix(in srgb, var(--danger) 24%, var(--line)); background: color-mix(in srgb, var(--danger-soft) 42%, var(--surface)); box-shadow: none; }
+.url { margin: 8px 0 17px; word-break: break-all; }
+.notice { margin-bottom: 16px; padding: 12px 14px; border-radius: var(--radius-small); color: var(--warning); background: var(--warning-soft); font-size: 13px; line-height: 1.55; }
+.grid { display: grid; grid-template-columns: 1fr 1.35fr; gap: 14px; }
+.filter { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; color: var(--text-muted); font-size: 13px; }
+.filter select { width: auto; min-width: 150px; min-height: 38px; }
+.samples { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.samples li { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 15px 0; border-bottom: 1px solid var(--line); }
+.samples li:last-child { border-bottom: 0; }
+.s-title { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+.empty, .empty-state { padding: 46px 20px; color: var(--text-muted); text-align: center; line-height: 1.6; }
+.result { color: var(--text-muted); font-size: 13px; }
+.result.ok { color: var(--success); }
+.result.err { color: var(--danger); }
+.alert { margin-top: 18px; padding: 13px 15px; border: 1px solid transparent; border-radius: var(--radius-small); font-size: 13px; line-height: 1.55; }
+.alert-success { border-color: color-mix(in srgb, var(--success) 24%, transparent); color: var(--success); background: var(--success-soft); }
+.alert-error { border-color: color-mix(in srgb, var(--danger) 24%, transparent); color: var(--danger); background: var(--danger-soft); }
+.alert-info { border-color: color-mix(in srgb, var(--accent) 24%, transparent); color: var(--accent); background: var(--accent-soft); }
+.spinner { display: inline-block; width: 14px; height: 14px; margin-right: 6px; border: 2px solid rgba(255, 255, 255, 0.38); border-top-color: #f7fbff; border-radius: 50%; vertical-align: -2px; animation: spin 0.8s linear infinite; }
+.privacy-note { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--text-muted); font-size: 12px; line-height: 1.7; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes page-in { from { opacity: 0; transform: translateY(12px); } }
+@keyframes content-in { from { opacity: 0; transform: translateY(6px); } }
+
+@media (max-width: 760px) {
+  .app-nav-shell { width: calc(100% - 28px); height: auto; min-height: 64px; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 10px 0; }
+  .brand span:last-child { display: none; }
+  .app-nav { grid-column: 1 / -1; grid-row: 2; width: 100%; min-width: 0; justify-self: stretch; justify-content: center; overflow: hidden; }
+  .app-nav a { min-width: 0; flex: 1 1 0; padding-inline: 8px; text-align: center; }
+  .nav-actions { grid-column: 2; grid-row: 1; }
+  .page-shell, .page-shell.narrow { width: min(100% - 28px, 1180px); padding: 42px 0 56px; }
+  .page-intro { margin-bottom: 26px; }
+  .page-intro h1 { max-width: 100%; font-size: 36px; overflow-wrap: anywhere; }
+  .page-intro p { font-size: 15px; }
+  .two-column, .form-grid, .grid { grid-template-columns: 1fr; }
+  .surface, .card, .section-card { padding: 20px; }
+  .page-section-heading, .edit-header { align-items: flex-start; flex-direction: column; }
+  .edit-header > div:last-child { display: flex; gap: 8px; }
+  .tabs { display: flex; width: 100%; }
+  .tab { flex: 1; text-align: center; }
+  .section-actions { align-items: stretch; }
+  .feedback-input { flex-basis: 100%; }
+  .samples li { align-items: flex-start; }
+  .head { align-items: flex-start; }
+  .head label { width: calc(100% - 30px); margin-right: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .app-header, .surface, .card, .section-card, .doc-card { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--surface-solid); }
+}
+
+</style>
+</head>
+<body>
+<header class="app-header">
+  <div class="app-nav-shell">
+    <a class="brand" href="/cases"><span class="brand-mark">律</span><span>案卷研判</span></a>
+    <nav class="app-nav" aria-label="主导航">
+      <a href="/cases" data-nav-path="/cases">案件</a>
+      <a href="/documents" data-nav-path="/documents">全部文书</a>
+      <a href="/samples" data-nav-path="/samples">样本</a>
+      <a href="/settings" data-nav-path="/settings">模型</a>
+    </nav>
+    <div class="nav-actions"><button class="theme-toggle" type="button" data-theme-toggle><span class="theme-option theme-option-light">浅色</span><span class="theme-option theme-option-dark">深色</span></button></div>
+  </div>
+</header>
+<main class="page-shell">
+  <section class="page-intro">
+    <p class="page-kicker">刑事案件内部研判</p>
+    <h1>把案卷事实，整理成可复核的法律意见。</h1>
+    <p>基于已脱敏材料生成分段初稿。每一段都需要律师审阅、修改并确认后再用于正式沟通。</p>
+  </section>
+
+  <div class="tabs" role="tablist" aria-label="文书工作区">
+    <div class="tab active" data-tab="generate" role="tab" tabindex="0">生成初稿</div>
+    <div class="tab" data-tab="list" role="tab" tabindex="0">文书列表</div>
+  </div>
+
+  <section class="panel active" id="generate-panel">
+    <div class="two-column">
+      <div class="panel-title">
+        <h2>新建文书</h2>
+        <p>先选择目标文书，再提供已完成脱敏的案卷材料。</p>
+      </div>
+      <div class="surface">
+        <div class="form-group" id="caseUploadGroup">
+          <label for="docType">文书类型 *</label>
+          <select id="docType">
+            <option value="">请选择文书类型</option>
+            <option value="evidence_opinion">质证意见</option>
+            <option value="prosecution_opinion">审查起诉阶段法律意见书</option>
+            <option value="detention_review">羁押必要性审查申请</option>
+          </select>
+        </div>
+        <div class="form-group" id="caseContentGroup">
+          <label for="caseFileName">案卷名称 *</label>
+          <input type="text" id="caseFileName" placeholder="例如：某某涉嫌诈骗案">
+        </div>
+        <div class="form-group">
+          <label for="caseUpload">上传案卷文件（已脱敏）</label>
+          <div class="upload-box">
+            <div class="upload-title">选择一份或多份 PDF、DOCX、TXT 案卷</div>
+            <input id="caseUpload" type="file" accept=".pdf,.docx,.txt" multiple>
+            <div id="caseUploadStatus" class="file-status">最多 20 份；单份不超过 20MB；文件合计不超过 50MB；提取文字与补充正文合计不超过 2MB。</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="caseContent">案卷正文补充（可选）</label>
+          <textarea class="case-content-input" id="caseContent" placeholder="可粘贴遗漏的讯问笔录、证据摘要或其他已脱敏材料"></textarea>
+          <div class="hint">上传文件与粘贴正文至少提供一种。请勿提交真实身份信息。</div>
+        </div>
+        <div class="form-group">
+          <label for="draftingRequirements">文书生成要求</label>
+          <textarea class="requirements-input" id="draftingRequirements" placeholder="例如：重点分析证人证言矛盾；围绕非法证据排除展开；语气克制；控制在 3000 字以内；诉讼请求写得明确。"></textarea>
+          <div class="hint">填写希望模型重点关注的争议、辩护方向、文风、篇幅和输出要求。</div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="modelSelect">分析模型</label>
+            <select id="modelSelect"><option value="">正在加载已启用模型</option></select>
+          </div>
+          <div class="form-group">
+            <label for="sampleSelect">参考样本</label>
+            <select id="sampleSelect"><option value="">不使用参考样本</option></select>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary" id="generateBtn"><span id="generateBtnText">生成初稿</span></button>
+          <button class="btn btn-secondary" id="clearBtn">清空</button>
+        </div>
+        <div id="generateAlert"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="list-panel">
+    <div class="list-view">
+      <div class="page-section-heading">
+        <div><h2>文书列表</h2><p>继续审阅未完成文书，或查看已经逐段确认的版本。</p></div>
+        <button class="btn btn-secondary" id="refreshBtn">刷新</button>
+      </div>
+      <div id="docListContainer" class="doc-list"></div>
+    </div>
+    <div class="edit-view" id="editView">
+      <div class="edit-header">
+        <div><h2 id="editDocTitle"></h2><div id="editDocMeta" class="doc-meta"></div></div>
+        <div class="download-actions">
+          <select id="exportFormat" aria-label="下载格式">
+            <option value="docx" selected>Word 文档</option>
+            <option value="pdf">PDF 文档</option>
+          </select>
+          <button class="btn btn-primary" id="exportBtn">下载文书</button>
+          <button class="btn btn-secondary" id="backBtn">返回列表</button>
+        </div>
+      </div>
+      <div id="sectionsContainer" class="section-list"></div>
+    </div>
+  </section>
+</main>
+<script>
+    // ==================== 全局状态 ====================
+    let currentDocId = null;
+    let docTypes = [];
+    let samples = [];
+    const pageParams = new URLSearchParams(window.location.search);
+    const caseId = pageParams.get('caseId');
+    const requestedDocId = pageParams.get('docId');
+    let requestedDocOpened = false;
+    
+    // ==================== 初始化 ====================
+    document.addEventListener('DOMContentLoaded', () => {
+      initTabs();
+      loadDocTypes();
+      loadEnabledProviders();
+      loadSamples();
+      loadDocuments();
+      loadCaseContext();
+      
+      document.getElementById('generateBtn').addEventListener('click', generateDocument);
+      document.getElementById('caseUpload').addEventListener('change', updateCaseUploadStatus);
+      document.getElementById('clearBtn').addEventListener('click', clearForm);
+      document.getElementById('refreshBtn').addEventListener('click', loadDocuments);
+      document.getElementById('backBtn').addEventListener('click', () => showView('list'));
+      document.getElementById('exportBtn').addEventListener('click', exportDocument);
+    });
+
+    async function loadCaseContext() {
+      if (!caseId) return;
+      try {
+        const workspace = await fetch(`/api/cases/${caseId}`).then((res) => res.json());
+        document.getElementById('caseFileName').value = workspace.case.name;
+        document.getElementById('caseFileName').readOnly = true;
+        document.getElementById('caseUploadGroup').hidden = true;
+        document.getElementById('caseContentGroup').hidden = true;
+        if (!document.getElementById('draftingRequirements').value) {
+          document.getElementById('draftingRequirements').value = workspace.case.draftingRequirements || '';
+        }
+      } catch (err) {
+        console.error('Failed to load case context:', err);
+      }
+    }
+    
+    // ==================== 标签页切换 ====================
+    function initTabs() {
+      document.querySelectorAll('.tab').forEach(tab => {
+        const activate = () => {
+          const tabName = tab.dataset.tab;
+          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+          document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+          tab.classList.add('active');
+          document.getElementById(`${tabName}-panel`).classList.add('active');
+          
+          if (tabName === 'list') {
+            loadDocuments();
+            showView('list');
+          }
+        };
+        tab.addEventListener('click', activate);
+        tab.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            activate();
+          }
+        });
+      });
+    }
+
+    function updateCaseUploadStatus() {
+      const files = Array.from(document.getElementById('caseUpload').files);
+      const status = document.getElementById('caseUploadStatus');
+      if (!files.length) {
+        status.textContent = '最多 20 份；单份不超过 20MB；文件合计不超过 50MB；提取文字与补充正文合计不超过 2MB。';
+        return;
+      }
+      const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+      const names = files.slice(0, 3).map((file) => file.name).join('、');
+      const remaining = files.length > 3 ? ` 等 ${files.length} 份文件` : '';
+      status.textContent = `已选择 ${files.length} 份，共 ${formatFileSize(totalSize)}：${names}${remaining}`;
+    }
+
+    function formatFileSize(bytes) {
+      if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
+      return `${Math.ceil(bytes / 1024)}KB`;
+    }
+
+    function readBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+        reader.onerror = () => reject(new Error('读取案卷文件失败'));
+        reader.readAsDataURL(file);
+      });
+    }
+    
+    // ==================== 加载文书类型 ====================
+    async function loadDocTypes() {
+      try {
+        const res = await fetch('/api/doc-types');
+        docTypes = await res.json();
+      } catch (err) {
+        console.error('Failed to load doc types:', err);
+      }
+    }
+
+    async function loadEnabledProviders() {
+      const select = document.getElementById('modelSelect');
+      try {
+        const data = await fetch('/api/providers').then((res) => res.json());
+        select.replaceChildren();
+        data.providers.filter((provider) => provider.enabled).forEach((provider) => {
+          const option = document.createElement('option');
+          option.value = provider.id;
+          option.textContent = provider.name + (provider.id === data.active ? '（当前）' : '');
+          select.append(option);
+        });
+        select.value = data.active;
+      } catch (err) {
+        select.innerHTML = '<option value="">暂无数据</option>';
+      }
+    }
+    
+    // ==================== 加载样本 ====================
+    async function loadSamples() {
+      try {
+        const res = await fetch('/api/samples');
+        samples = await res.json();
+        const select = document.getElementById('sampleSelect');
+        samples.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.id;
+          opt.textContent = `${s.name} (${s.docType})`;
+          select.appendChild(opt);
+        });
+      } catch (err) {
+        console.error('Failed to load samples:', err);
+      }
+    }
+    
+    // ==================== 生成文书 ====================
+    async function generateDocument() {
+      const docType = document.getElementById('docType').value;
+      const caseFileName = document.getElementById('caseFileName').value.trim();
+      const caseContent = document.getElementById('caseContent').value.trim();
+      const caseUploads = Array.from(document.getElementById('caseUpload').files);
+      const draftingRequirements = document.getElementById('draftingRequirements').value.trim();
+      const model = document.getElementById('modelSelect').value;
+      const sampleId = document.getElementById('sampleSelect').value || undefined;
+      
+      if (!docType || !caseFileName || (!caseId && !caseContent && caseUploads.length === 0)) {
+        showAlert('generateAlert', 'error', '请填写文书类型和案卷名称，并粘贴案卷正文或上传案卷文件');
+        return;
+      }
+      if (caseUploads.length > 20) {
+        showAlert('generateAlert', 'error', '案卷文件最多上传 20 份');
+        return;
+      }
+      const oversizedFile = caseUploads.find((file) => file.size > 20 * 1024 * 1024);
+      if (oversizedFile) {
+        showAlert('generateAlert', 'error', `“${oversizedFile.name}”超过单份 20MB 限制`);
+        return;
+      }
+      const totalUploadSize = caseUploads.reduce((sum, file) => sum + file.size, 0);
+      if (totalUploadSize > 50 * 1024 * 1024) {
+        showAlert('generateAlert', 'error', '案卷文件合计不能超过 50MB');
+        return;
+      }
+      
+      const btn = document.getElementById('generateBtn');
+      const btnText = document.getElementById('generateBtnText');
+      btn.disabled = true;
+      btnText.innerHTML = '<span class="spinner"></span> 生成中...';
+      showAlert('generateAlert', 'info', '正在调用大模型生成文书，请耐心等待（约30-60秒）...');
+      
+      try {
+        const uploadedFiles = [];
+        if (!caseId) {
+          for (const file of caseUploads) uploadedFiles.push({ name: file.name, base64: await readBase64(file) });
+        }
+        const endpoint = caseId ? `/api/cases/${caseId}/documents` : '/api/documents';
+        const scope = {
+          personId: pageParams.get('person'),
+          eventId: pageParams.get('event'),
+          evidenceId: pageParams.get('evidence'),
+        };
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            docType, caseFileName, caseContent, model, sampleId, draftingRequirements,
+            caseUploads: uploadedFiles, scope
+          })
+        });
+        
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || '生成失败');
+        }
+        
+        const doc = await res.json();
+        showAlert('generateAlert', 'success', `文书生成成功！ID: ${doc.id}`);
+        clearForm();
+        
+        // 切换到列表页并打开编辑视图
+        setTimeout(() => {
+          document.querySelector('.tab[data-tab="list"]').click();
+          loadDocuments().then(() => openDocument(doc.id));
+        }, 1500);
+        
+      } catch (err) {
+        showAlert('generateAlert', 'error', `生成失败：${err.message}`);
+      } finally {
+        btn.disabled = false;
+        btnText.textContent = '生成文书';
+      }
+    }
+    
+    function clearForm() {
+      document.getElementById('docType').value = '';
+      document.getElementById('caseFileName').value = '';
+      document.getElementById('caseContent').value = '';
+      document.getElementById('caseUpload').value = '';
+      document.getElementById('draftingRequirements').value = '';
+      updateCaseUploadStatus();
+      loadEnabledProviders();
+      document.getElementById('sampleSelect').value = '';
+      document.getElementById('generateAlert').innerHTML = '';
+    }
+    
+    // ==================== 加载文书列表 ====================
+    async function loadDocuments() {
+      const container = document.getElementById('docListContainer');
+      container.innerHTML = '<div class="empty-state">正在加载文书...</div>';
+      
+      try {
+        const res = await fetch('/api/documents');
+        let docs = await res.json();
+        if (caseId) docs = docs.filter(doc => doc.caseId === caseId);
+        
+        if (docs.length === 0) {
+          container.innerHTML = '<div class="empty-state">暂无数据</div>';
+          return;
+        }
+        
+        container.innerHTML = docs.map(doc => {
+          const statusClass = `status-${doc.status}`;
+          const statusText = { draft: '草稿', reviewing: '审阅中', completed: '已完成' }[doc.status];
+          return `
+            <div class="doc-card" onclick="openDocument('${doc.id}')">
+              <div class="doc-card-header">
+                <span class="doc-type">${doc.typeName}</span>
+                <span class="doc-status ${statusClass}">${statusText}</span>
+              </div>
+              <div class="doc-meta">
+                案卷：${doc.caseFileName} | 模型：${doc.model} | 创建时间：${new Date(doc.createdAt).toLocaleString('zh-CN')}
+              </div>
+            </div>
+          `;
+        }).join('');
+        if (requestedDocId && !requestedDocOpened && docs.some((doc) => doc.id === requestedDocId)) {
+          requestedDocOpened = true;
+          openDocument(requestedDocId);
+        }
+      } catch (err) {
+        console.error('Failed to load documents:', err);
+        container.innerHTML = '<div class="empty-state">暂无数据</div>';
+      }
+    }
+    
+    // ==================== 打开文书编辑 ====================
+    async function openDocument(docId) {
+      currentDocId = docId;
+      showView('edit');
+      
+      try {
+        const res = await fetch(`/api/documents/${docId}`);
+        const doc = await res.json();
+        
+        document.getElementById('editDocTitle').textContent = doc.typeName;
+        document.getElementById('editDocMeta').textContent = `案卷：${doc.caseFileName} | 模型：${doc.model} | 创建于：${new Date(doc.createdAt).toLocaleString('zh-CN')}`;
+        
+        const container = document.getElementById('sectionsContainer');
+        container.innerHTML = doc.sections.map((sec) => {
+          const stateClass = `state-${sec.state}`;
+          const stateText = { pending: '待确认', confirmed: '已确认', rejected: '待修改' }[sec.state] || '待确认';
+          const isConfirmed = sec.state === 'confirmed';
+          
+          return `
+            <div class="section-card" id="section-${sec.key}">
+              <div class="section-header">
+                <span class="section-title">${sec.title}</span>
+                <span class="section-state ${stateClass}">${stateText}</span>
+              </div>
+              <div class="section-content">${sec.content}</div>
+              ${sec.sourceRefs && sec.sourceRefs.length ? `
+                <div class="row">${sec.sourceRefs.map((ref) => `
+                  <a class="tag" href="/cases/${encodeURIComponent(doc.caseId)}?view=overview&source=${encodeURIComponent(ref.chunkId)}">${ref.fileName || '案卷材料'}${ref.pageStart ? ` · 第${ref.pageStart}页` : ''}</a>
+                `).join('')}</div>
+              ` : ''}
+              <div class="section-actions">
+                <input type="text" class="feedback-input" id="feedback-${sec.key}" placeholder="输入修改意见..." ${isConfirmed ? 'disabled' : ''}>
+                <button class="btn btn-warning" onclick="reviseSection('${sec.key}')" ${isConfirmed ? 'disabled' : ''}>修改</button>
+                <button class="btn btn-success" onclick="confirmSection('${sec.key}')" ${isConfirmed ? 'disabled' : ''}>确认</button>
+              </div>
+              ${sec.confirmHistory && sec.confirmHistory.length > 0 ? `
+                <span class="history-toggle" onclick="toggleHistory('${sec.key}')">查看修改历史</span>
+                <div class="history-list" id="history-${sec.key}">
+                  ${sec.confirmHistory.map(h => `
+                    <div class="history-item">
+                      <strong>${new Date(h.timestamp).toLocaleString('zh-CN')}</strong> - ${h.action === 'confirmed' ? '确认' : h.action === 'rejected' ? '曾标记待修改' : '修改'}
+                      ${h.feedback ? `<br>反馈：${h.feedback}` : ''}
+                      ${h.reason ? `<br>原因：${h.reason}` : ''}
+                    </div>
+                  `).join('')}
+                </div>
+              ` : ''}
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error('Failed to open document:', err);
+        showView('list');
+      }
+    }
+    
+    // ==================== 段落操作 ====================
+    async function reviseSection(key) {
+      const feedback = document.getElementById(`feedback-${key}`).value.trim();
+      if (!feedback) {
+        alert('请输入修改意见');
+        return;
+      }
+      
+      if (!confirm('确定要根据反馈重新生成该段落吗？')) return;
+      
+      try {
+        const res = await fetch(`/api/documents/${currentDocId}/sections/${key}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ feedback })
+        });
+        
+        if (!res.ok) throw new Error('修改失败');
+        
+        alert('段落已重新生成');
+        openDocument(currentDocId);
+      } catch (err) {
+        alert(`修改失败：${err.message}`);
+      }
+    }
+    
+    async function confirmSection(key) {
+      try {
+        const res = await fetch(`/api/documents/${currentDocId}/sections/${key}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'confirmed' })
+        });
+        
+        if (!res.ok) throw new Error('确认失败');
+        
+        openDocument(currentDocId);
+      } catch (err) {
+        alert(`确认失败：${err.message}`);
+      }
+    }
+    
+    function toggleHistory(key) {
+      const el = document.getElementById(`history-${key}`);
+      el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    }
+    
+    // ==================== 导出文书 ====================
+    async function exportDocument() {
+      try {
+        const res = await fetch(`/api/documents/${currentDocId}`);
+        const doc = await res.json();
+        
+        const allConfirmed = doc.sections.every(s => s.state === 'confirmed');
+        if (!allConfirmed && !confirm('部分段落未确认，是否继续导出？')) return;
+        
+        const format = document.getElementById('exportFormat').value || 'docx';
+        const downloadUrl = `/api/documents/${currentDocId}/export?format=${encodeURIComponent(format)}`;
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = '';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } catch (err) {
+        alert(`导出失败：${err.message}`);
+      }
+    }
+    
+    // ==================== 工具函数 ====================
+    function showView(view) {
+      document.querySelector('.list-view').style.display = view === 'list' ? 'block' : 'none';
+      document.getElementById('editView').style.display = view === 'edit' ? 'block' : 'none';
+    }
+    
+    function showAlert(containerId, type, message) {
+      const container = document.getElementById(containerId);
+      const className = type === 'error' ? 'alert-error' : type === 'success' ? 'alert-success' : 'alert-info';
+      container.innerHTML = `<div class="alert ${className}">${message}</div>`;
+    }
+  </script>
+</body>
+</html>
+
+

@@ -1,0 +1,19 @@
+{
+  "name": "law-case-redaction-saas",
+  "version": "0.1.0",
+  "private": true,
+  "description": "刑事案卷脱敏与内部研判",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "test": "node --test \"test/*.test.js\""
+  },
+  "engines": {
+    "node": ">=22.9"
+  },
+  "dependencies": {
+    "docx": "^9.15.1",
+    "mammoth": "^1.9.1",
+    "pdf-parse": "^1.1.1",
+    "pdfkit": "^0.20.2"
+  }
+}

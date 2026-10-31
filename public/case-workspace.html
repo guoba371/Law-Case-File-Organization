@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>案件工作台 - 案卷研判</title>
+  <link rel="stylesheet" href="/app.css">
+  <script src="/app.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-nav-shell">
+      <a class="brand" href="/cases"><span class="brand-mark">律</span><span>案卷研判</span></a>
+      <nav class="app-nav" aria-label="主导航">
+        <a href="/cases" data-nav-path="/cases">案件</a>
+        <a href="/documents" data-nav-path="/documents">全部文书</a>
+        <a href="/samples" data-nav-path="/samples">样本</a>
+        <a href="/settings" data-nav-path="/settings">模型</a>
+      </nav>
+      <div class="nav-actions"><button class="theme-toggle" type="button" data-theme-toggle><span class="theme-option theme-option-light">浅色</span><span class="theme-option theme-option-dark">深色</span></button></div>
+    </div>
+  </header>
+
+  <main class="workspace-shell">
+    <section class="workspace-heading">
+      <div><a class="workspace-back" href="/cases">返回案件</a><h1 id="caseTitle">案件研判</h1><p id="caseSubtitle">正在读取案件信息</p></div>
+      <div class="workspace-status-block"><span id="caseStatus" class="case-status">等待处理</span><span id="caseProgressText" class="workspace-progress-text">0%</span></div>
+      <div class="workspace-progress"><div id="caseProgressBar" class="workspace-progress-bar"></div></div>
+    </section>
+
+    <div class="case-workspace-layout">
+      <nav class="case-sidebar" aria-label="案件内导航">
+        <button type="button" data-case-view="overview">案件概览</button>
+        <button type="button" data-case-view="materials">案卷材料</button>
+        <button type="button" data-case-view="timeline">时间轴</button>
+        <button type="button" data-case-view="people">人物关系</button>
+        <button type="button" data-case-view="events">事件进展</button>
+        <button type="button" data-case-view="evidence">证据研判</button>
+        <button type="button" data-case-view="documents">法律文书</button>
+      </nav>
+
+      <section class="case-main">
+        <div class="case-view-toolbar">
+          <div><p id="viewKicker" class="page-kicker">案件概览</p><h2 id="viewTitle">案件研判总览</h2></div>
+          <a id="generateDocumentLink" class="btn btn-primary" href="/documents">生成文书</a>
+        </div>
+        <div id="caseViewContent" class="case-view-content"><div class="empty-state">暂无数据</div></div>
+      </section>
+
+      <aside id="sourceDrawer" class="source-drawer" aria-hidden="true">
+        <div class="source-drawer-header"><div><span class="page-kicker">来源核验</span><h2>材料定位</h2></div><button id="closeSourceDrawer" class="source-close" type="button" aria-label="关闭来源">关闭</button></div>
+        <dl class="source-meta">
+          <div><dt>文件</dt><dd id="sourceFile">暂无数据</dd></div>
+          <div><dt>片段</dt><dd id="sourceFragment">暂无数据</dd></div>
+          <div><dt>页码</dt><dd id="sourcePage">暂无数据</dd></div>
+        </dl>
+        <div class="source-excerpt-block"><span>原文摘录</span><pre id="sourceExcerpt">暂无数据</pre></div>
+        <p class="source-warning">模型结果仅为候选，请回到对应材料核对原文后再用于法律文书。</p>
+      </aside>
+    </div>
+  </main>
+  <div id="sourceBackdrop" class="source-backdrop"></div>
+  <script src="/case-workspace.js"></script>
+</body>
+</html>
