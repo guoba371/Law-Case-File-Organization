@@ -11,6 +11,8 @@ const upload = require('./case-upload');
 const { CASE_LIMITS } = require('./case-config');
 const { createCasesService } = require('./cases');
 const { createCaseQueue } = require('./case-queue');
+const { renderCaseDiagram } = require('./case-diagrams');
+const { createFeedbackService } = require('./feedback');
 
 const HOST = '127.0.0.1';
 const PORT = Number(process.env.PORT) || 3000;
@@ -85,6 +87,7 @@ function createHttpServer(dependencies = {}) {
   const casesService = dependencies.casesService || createCasesService({ store, upload });
   const caseUpload = dependencies.caseUpload || upload;
   const caseQueue = dependencies.caseQueue || createCaseQueue({ store, processCase: casesService.processCase });
+  const feedbackService = dependencies.feedbackService || createFeedbackService();
 
   return http.createServer(async (req, res) => {
     try {
@@ -94,6 +97,9 @@ function createHttpServer(dependencies = {}) {
       if (req.method === 'GET' && pathname === '/app.js') return streamFile(res, APP_JS, 'text/javascript; charset=utf-8');
       if (req.method === 'GET' && pathname === '/cases.js') return streamFile(res, CASES_JS, 'text/javascript; charset=utf-8');
       if (req.method === 'GET' && pathname === '/case-workspace.js') return streamFile(res, CASE_WORKSPACE_JS, 'text/javascript; charset=utf-8');
+      if (req.method === 'GET' && pathname === '/case-diagrams.js') return streamFile(res, path.join(PUBLIC_DIR, 'case-diagrams.js'), 'text/javascript; charset=utf-8');
+      if (req.method === 'GET' && ['/people-graph.js', '/people-graph-data.js'].includes(pathname)) return streamFile(res, path.join(PUBLIC_DIR, pathname.slice(1)), 'text/javascript; charset=utf-8');
+      if (req.method === 'GET' && pathname === '/vendor/g6.min.js') return streamFile(res, path.join(__dirname, '..', 'node_modules', '@antv', 'g6', 'dist', 'g6.min.js'), 'text/javascript; charset=utf-8');
       if (req.method === 'GET' && pathname === '/') return streamFile(res, CASES_PAGE, 'text/html; charset=utf-8');
       if (req.method === 'GET' && pathname === '/settings') return streamFile(res, PAGE, 'text/html; charset=utf-8');
       if (req.method === 'GET' && pathname === '/cases') return streamFile(res, CASES_PAGE, 'text/html; charset=utf-8');
@@ -106,8 +112,12 @@ function createHttpServer(dependencies = {}) {
       const providerTest = pathname.match(/^\/api\/providers\/([a-z]+)\/test$/);
       if (providerTest && req.method === 'POST') return send(res, 200, await testProvider(providerTest[1]));
 
+      if (pathname === '/api/feedback' && req.method === 'POST') {
+        return send(res, 201, await feedbackService.submitFeedback(await readJson(req, 36 * 1024 * 1024)));
+      }
+
       if (pathname === '/api/samples' && req.method === 'GET') return send(res, 200, listSamples(url.searchParams.get('type')));
-      if (pathname === '/api/samples' && req.method === 'POST') return send(res, 201, createSample(await readJson(req, 15 * 1024 * 1024)));
+      if (pathname === '/api/samples' && req.method === 'POST') return send(res, 201, await createSample(await readJson(req, 15 * 1024 * 1024)));
       const sample = pathname.match(/^\/api\/samples\/([^/]+)$/);
       if (sample && req.method === 'DELETE') return send(res, 200, deleteSample(sample[1]));
 
@@ -141,6 +151,19 @@ function createHttpServer(dependencies = {}) {
       }
       const caseStatus = pathname.match(/^\/api\/cases\/([^/]+)\/status$/);
       if (caseStatus && req.method === 'GET') return send(res, 200, caseQueue.getStatus(caseStatus[1]));
+      const diagramMatch = pathname.match(new RegExp('^/api/cases/([^/]+)/diagrams/([^/]+)$'));
+      if (diagramMatch && req.method === 'GET') {
+        const workspace = casesService.getCaseWorkspace(diagramMatch[1]);
+        const diagram = await renderCaseDiagram(workspace.views, diagramMatch[2], {
+          theme: url.searchParams.get('theme'), relationType: url.searchParams.get('relationType'),
+        });
+        res.setHeader('Cache-Control', 'no-store');
+        if (url.searchParams.get('format') === 'svg') {
+          if (!diagram.svg) return send(res, 404, { error: '暂无数据' });
+          return sendDownload(res, { fileName: `${diagram.title}-候选研判.svg`, contentType: 'image/svg+xml; charset=utf-8', buffer: Buffer.from(diagram.svg) });
+        }
+        return send(res, 200, diagram);
+      }
       const caseDocuments = pathname.match(/^\/api\/cases\/([^/]+)\/documents$/);
       if (caseDocuments && req.method === 'POST') {
         const body = await readJson(req, 1024 * 1024);

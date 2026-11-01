@@ -104,6 +104,20 @@ function createCasesService(dependencies = {}) {
     return { status, progress };
   }
 
+  function restoreCaseViews(caseId) {
+    const views = store.readCaseData(caseId, 'views', {});
+    if (['timeline', 'people', 'relations', 'events', 'evidence'].some((field) => views[field]?.length)) return false;
+    const summaries = store.readCaseData(caseId, 'summaries', { chunks: [], files: [], case: null });
+    const candidates = summaries.chunks.map((entry) => entry.summary);
+    if (!candidates.length) return false;
+    const restored = analysis.mergeAnalyses(candidates);
+    if (!['timeline', 'people', 'relations', 'events', 'evidence'].some((field) => restored[field].length)) return false;
+    if (summaries.case?.summary) restored.summary = summaries.case.summary;
+    store.writeCaseData(caseId, 'summaries', { ...summaries, case: restored });
+    store.writeCaseData(caseId, 'views', buildCaseViews(caseId, restored));
+    return true;
+  }
+
   function getCaseWorkspace(caseId) {
     return {
       case: store.getCase(caseId),
@@ -145,6 +159,7 @@ function createCasesService(dependencies = {}) {
     getCaseWorkspace,
     listCases: store.listCases,
     processCase,
+    restoreCaseViews,
   };
 }
 

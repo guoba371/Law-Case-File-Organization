@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <title>案件 - 案卷研判</title>
+  <title>案件工作台 - 案卷研判</title>
   <link rel="stylesheet" href="/app.css">
   <script src="/app.js"></script>
 </head>
@@ -13,10 +13,9 @@
     <div class="app-nav-shell">
       <a class="brand" href="/cases"><span class="brand-mark">律</span><span>案卷研判</span></a>
       <nav class="app-nav" aria-label="主导航">
-        <a href="/cases" data-nav-path="/cases">案件</a>
-        <a href="/documents" data-nav-path="/documents">全部文书</a>
-        <a href="/samples" data-nav-path="/samples">样本</a>
-        <a href="/settings" data-nav-path="/settings">模型</a>
+        <a href="/cases" data-nav-path="/cases">案件工作台</a>
+        <a href="/samples" data-nav-path="/samples">文书样本</a>
+        <a href="/settings" data-nav-path="/settings">系统设置</a>
       </nav>
       <div class="nav-actions">
         <button class="theme-toggle" type="button" data-theme-toggle>
@@ -28,21 +27,22 @@
   </header>
 
   <main class="page-shell">
-    <section class="case-hero">
-      <div class="page-intro">
-        <p class="page-kicker">刑事案卷内部研判</p>
-        <h1>从案卷材料，到可核验的研判线索。</h1>
-        <p>上传已经脱敏的案卷，系统分批提取时间、人物、事件与证据候选。所有结果均需律师结合原文确认。</p>
-      </div>
-      <div class="case-guardrail">
-        <span class="case-guardrail-mark">仅</span>
-        <div><strong>只上传已脱敏材料</strong><p>原始临时文件在提取完成后删除；模型只接收必要文字片段。</p></div>
-      </div>
+    <section class="case-home-heading">
+      <div><h1>案件工作台</h1><p>先选择案件，在同一案件内查看材料、研判图表与法律文书。</p></div>
+      <button id="newCaseButton" class="btn btn-primary" type="button" aria-controls="newCasePanel" aria-expanded="false">新建案件</button>
     </section>
 
-    <div class="case-create-grid">
+    <section id="caseListSection" class="case-home-list" aria-label="案件列表">
+      <div class="page-section-heading"><h2>案件列表</h2></div>
+      <div id="caseList" class="case-list"><div class="empty-state">暂无数据</div></div>
+      <p class="legacy-documents-link"><a href="/documents">未归属案件的历史文书</a><span>仅用于查看和继续审阅旧文书，新文书请在案件内生成。</span></p>
+    </section>
+
+    <section id="newCasePanel" hidden aria-label="新建案件">
+      <div class="page-return"><button id="cancelNewCaseButton" class="btn btn-secondary" type="button">返回案件列表</button></div>
+      <div class="case-create-grid">
       <section class="surface case-create-panel">
-        <div class="panel-title"><h2>新建案件</h2><p>案件名称和材料上传完成后，将自动进入后台分批解析。</p></div>
+        <div class="panel-title"><h2>新建案件</h2><p>只上传已脱敏材料。材料归入本案后，研判图表与文书共用同一份案卷，无需重复上传。</p></div>
         <form id="caseForm">
           <div class="form-grid">
             <div class="field"><label for="caseName">案件名称</label><input id="caseName" type="text" required placeholder="例如：李某涉嫌诈骗案"></div>
@@ -71,13 +71,44 @@
         <div class="process-step"><span>02</span><div><strong>分级研判</strong><p>按片段、文件、整案逐级汇总，避免一次塞入全部案卷。</p></div></div>
         <div class="process-step"><span>03</span><div><strong>律师核验</strong><p>时间轴、关系和证据均显示来源，律师确认前都是候选。</p></div></div>
       </aside>
-    </div>
-
-    <section class="case-list-section">
-      <div class="page-section-heading"><div><h2>最近案件</h2><p>继续查看研判进度、关系图和法律文书。</p></div></div>
-      <div id="caseList" class="case-list"><div class="empty-state">暂无数据</div></div>
+      </div>
     </section>
+
+    <div class="feedback-entry">
+      <button id="feedbackTrigger" class="feedback-trigger" type="button" aria-haspopup="dialog" aria-controls="feedbackDialog">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 9h8M8 13h5"/></svg>
+        <span>问题反馈</span>
+      </button>
+    </div>
   </main>
+
+  <dialog id="feedbackDialog" class="feedback-dialog" aria-labelledby="feedbackTitle">
+    <form id="feedbackForm" class="feedback-form">
+      <div class="feedback-header">
+        <div><h2 id="feedbackTitle">问题反馈</h2><p>请说明遇到的问题，截图有助于定位。</p></div>
+        <button id="feedbackClose" class="feedback-close" type="button" aria-label="关闭反馈窗口">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+      <div class="field">
+        <label for="feedbackDescription">问题描述</label>
+        <textarea id="feedbackDescription" required maxlength="5000" placeholder="请描述出现问题的页面、操作步骤和预期结果。"></textarea>
+      </div>
+      <div class="field">
+        <label for="feedbackImages">相关截图（可选）</label>
+        <input id="feedbackImages" type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" multiple>
+        <p class="feedback-hint">最多 5 张，支持 PNG、JPG、WEBP，单张不超过 5MB。请勿上传未脱敏案卷。</p>
+        <div id="feedbackFileList" class="feedback-file-list" aria-live="polite"></div>
+      </div>
+      <div class="feedback-actions">
+        <p id="feedbackStatus" class="feedback-result result" role="status" aria-live="polite"></p>
+        <div>
+          <button id="feedbackCancel" class="btn btn-secondary" type="button">取消</button>
+          <button id="feedbackSubmit" class="btn btn-primary" type="submit">提交反馈</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
   <script src="/cases.js"></script>
 </body>
 </html>

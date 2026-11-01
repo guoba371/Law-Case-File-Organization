@@ -33,7 +33,8 @@
       });
     });
 
-    const currentPath = window.location.pathname === '/' ? '/settings' : window.location.pathname;
+    const pathname = window.location.pathname;
+    const currentPath = pathname === '/' || pathname === '/documents' || pathname.startsWith('/cases/') ? '/cases' : pathname;
     document.querySelectorAll('[data-nav-path]').forEach((link) => {
       if (link.dataset.navPath === currentPath) link.setAttribute('aria-current', 'page');
     });
@@ -344,6 +345,21 @@ legend { margin-bottom: 20px; }
   .app-header, .surface, .card, .section-card, .doc-card { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--surface-solid); }
 }
 
+.page-return { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 24px; }
+.page-return .back-link { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; text-decoration: none; }
+.page-return [hidden] { display: none; }
+.back-link svg { width: 18px; height: 18px; flex-shrink: 0; }
+[hidden] { display: none !important; }
+.page-intro h1 { font-size: 32px; letter-spacing: -0.03em; }
+.case-document-navigation { display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 18px; margin-bottom: 26px; border-bottom: 1px solid var(--line); }
+.case-document-navigation a { min-height: 44px; padding: 11px 14px; border-radius: 10px; text-decoration: none; font-size: 14px; }
+.case-document-navigation a[aria-current='page'] { background: var(--accent-soft); font-weight: 650; }
+.case-document-navigation a:hover { background: var(--surface-muted); }
+.case-material-note { margin-top: 18px; color: var(--text-muted); font-size: 14px; line-height: 1.7; }
+.case-material-note a { display: inline-block; margin-top: 12px; color: var(--text); text-underline-offset: 4px; }
+.doc-card { display: block; text-decoration: none; }
+.tabs .tab { border: 0; background: transparent; }
+.tabs .tab.active { background: var(--accent); }
 </style>
 </head>
 <body>
@@ -351,34 +367,43 @@ legend { margin-bottom: 20px; }
   <div class="app-nav-shell">
     <a class="brand" href="/cases"><span class="brand-mark">律</span><span>案卷研判</span></a>
     <nav class="app-nav" aria-label="主导航">
-      <a href="/cases" data-nav-path="/cases">案件</a>
-      <a href="/documents" data-nav-path="/documents">全部文书</a>
-      <a href="/samples" data-nav-path="/samples">样本</a>
-      <a href="/settings" data-nav-path="/settings">模型</a>
+      <a href="/cases" data-nav-path="/cases">案件工作台</a>
+      <a href="/samples" data-nav-path="/samples">文书样本</a>
+      <a href="/settings" data-nav-path="/settings">系统设置</a>
     </nav>
     <div class="nav-actions"><button class="theme-toggle" type="button" data-theme-toggle><span class="theme-option theme-option-light">浅色</span><span class="theme-option theme-option-dark">深色</span></button></div>
   </div>
 </header>
 <main class="page-shell">
+  <nav class="page-return" aria-label="返回导航">
+    <a id="pageBackLink" class="btn btn-secondary back-link" href="/cases"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m12 5-7 7 7 7M5 12h14"/></svg><span id="pageBackLabel">返回案件列表</span></a>
+    <a id="caseListLink" class="btn btn-secondary back-link" href="/cases" hidden>返回案件列表</a>
+  </nav>
   <section class="page-intro">
-    <p class="page-kicker">刑事案件内部研判</p>
-    <h1>把案卷事实，整理成可复核的法律意见。</h1>
-    <p>基于已脱敏材料生成分段初稿。每一段都需要律师审阅、修改并确认后再用于正式沟通。</p>
+    <h1 id="documentPageTitle">历史文书</h1>
+    <p id="documentPageDescription">仅展示未归属案件的历史文书，可继续审阅、修改和下载。新文书请先进入案件。</p>
   </section>
+  <nav id="caseDocumentNavigation" class="case-document-navigation" aria-label="案件内导航" hidden>
+    <a id="caseOverviewLink" href="/cases">概览</a>
+    <a id="caseMaterialsLink" href="/cases">案卷材料</a>
+    <a id="caseAnalysisLink" href="/cases">案情研判</a>
+    <a id="caseDocumentsLink" href="/cases" aria-current="page">法律文书</a>
+  </nav>
 
   <div class="tabs" role="tablist" aria-label="文书工作区">
-    <div class="tab active" data-tab="generate" role="tab" tabindex="0">生成初稿</div>
-    <div class="tab" data-tab="list" role="tab" tabindex="0">文书列表</div>
+    <button class="tab" data-tab="generate" role="tab" aria-selected="false" type="button" hidden>生成初稿</button>
+    <button class="tab active" data-tab="list" role="tab" aria-selected="true" type="button">文书列表</button>
   </div>
 
-  <section class="panel active" id="generate-panel">
+  <section class="panel" id="generate-panel" hidden>
     <div class="two-column">
       <div class="panel-title">
         <h2>新建文书</h2>
-        <p>先选择目标文书，再提供已完成脱敏的案卷材料。</p>
+        <p>选择文书类型，填写本次生成要求。</p>
+        <div class="case-material-note">直接使用本案已上传的脱敏材料与研判结果，无需重复上传。初稿仍需律师逐段核验。<br><a id="caseMaterialLink" href="/cases">查看本案材料</a></div>
       </div>
       <div class="surface">
-        <div class="form-group" id="caseUploadGroup">
+        <div class="form-group" id="docTypeGroup">
           <label for="docType">文书类型 *</label>
           <select id="docType">
             <option value="">请选择文书类型</option>
@@ -387,22 +412,9 @@ legend { margin-bottom: 20px; }
             <option value="detention_review">羁押必要性审查申请</option>
           </select>
         </div>
-        <div class="form-group" id="caseContentGroup">
-          <label for="caseFileName">案卷名称 *</label>
-          <input type="text" id="caseFileName" placeholder="例如：某某涉嫌诈骗案">
-        </div>
         <div class="form-group">
-          <label for="caseUpload">上传案卷文件（已脱敏）</label>
-          <div class="upload-box">
-            <div class="upload-title">选择一份或多份 PDF、DOCX、TXT 案卷</div>
-            <input id="caseUpload" type="file" accept=".pdf,.docx,.txt" multiple>
-            <div id="caseUploadStatus" class="file-status">最多 20 份；单份不超过 20MB；文件合计不超过 50MB；提取文字与补充正文合计不超过 2MB。</div>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="caseContent">案卷正文补充（可选）</label>
-          <textarea class="case-content-input" id="caseContent" placeholder="可粘贴遗漏的讯问笔录、证据摘要或其他已脱敏材料"></textarea>
-          <div class="hint">上传文件与粘贴正文至少提供一种。请勿提交真实身份信息。</div>
+          <label for="caseFileName">所属案件</label>
+          <input type="text" id="caseFileName" readonly>
         </div>
         <div class="form-group">
           <label for="draftingRequirements">文书生成要求</label>
@@ -416,27 +428,29 @@ legend { margin-bottom: 20px; }
           </div>
           <div class="form-group">
             <label for="sampleSelect">参考样本</label>
-            <select id="sampleSelect"><option value="">不使用参考样本</option></select>
+            <select id="sampleSelect" disabled><option value="">正在加载参考样本</option></select>
+            <div class="hint" id="sampleHelp">仅使用已脱敏的本所文书样本。没有可选项时，请先<a href="/samples" target="_blank" rel="noopener">上传或管理文书样本</a>。</div>
           </div>
         </div>
         <div class="actions">
-          <button class="btn btn-primary" id="generateBtn"><span id="generateBtnText">生成初稿</span></button>
-          <button class="btn btn-secondary" id="clearBtn">清空</button>
+          <button class="btn btn-primary" id="generateBtn" disabled><span id="generateBtnText">生成初稿</span></button>
+          <button class="btn btn-secondary" id="clearBtn">重置要求</button>
         </div>
         <div id="generateAlert"></div>
       </div>
     </div>
   </section>
 
-  <section class="panel" id="list-panel">
+  <section class="panel active" id="list-panel">
     <div class="list-view">
       <div class="page-section-heading">
-        <div><h2>文书列表</h2><p>继续审阅未完成文书，或查看已经逐段确认的版本。</p></div>
+        <div><h2 id="documentListTitle">历史文书列表</h2><p>继续审阅未完成文书，或查看已经逐段确认的版本。</p></div>
         <button class="btn btn-secondary" id="refreshBtn">刷新</button>
       </div>
       <div id="docListContainer" class="doc-list"></div>
     </div>
     <div class="edit-view" id="editView">
+      <div class="page-return"><button class="btn btn-secondary back-link" id="backBtn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m12 5-7 7 7 7M5 12h14"/></svg>返回文书列表</button></div>
       <div class="edit-header">
         <div><h2 id="editDocTitle"></h2><div id="editDocMeta" class="doc-meta"></div></div>
         <div class="download-actions">
@@ -445,7 +459,6 @@ legend { margin-bottom: 20px; }
             <option value="pdf">PDF 文档</option>
           </select>
           <button class="btn btn-primary" id="exportBtn">下载文书</button>
-          <button class="btn btn-secondary" id="backBtn">返回列表</button>
         </div>
       </div>
       <div id="sectionsContainer" class="section-list"></div>
@@ -458,39 +471,89 @@ legend { margin-bottom: 20px; }
     let docTypes = [];
     let samples = [];
     const pageParams = new URLSearchParams(window.location.search);
-    const caseId = pageParams.get('caseId');
+    let caseId = pageParams.get('caseId');
     const requestedDocId = pageParams.get('docId');
-    let requestedDocOpened = false;
+    let caseContextLoaded = false;
     
     // ==================== 初始化 ====================
     document.addEventListener('DOMContentLoaded', () => {
+      updateReturnNavigation();
       initTabs();
+      configureDocumentScope();
+      if (!caseId || pageParams.get('tab') === 'list') showView('list');
+      else document.querySelector('.tab[data-tab="generate"]').click();
       loadDocTypes();
       loadEnabledProviders();
       loadSamples();
       loadDocuments();
       loadCaseContext();
+      if (requestedDocId) openDocument(requestedDocId);
       
       document.getElementById('generateBtn').addEventListener('click', generateDocument);
-      document.getElementById('caseUpload').addEventListener('change', updateCaseUploadStatus);
+      document.getElementById('docType').addEventListener('change', renderSampleOptions);
       document.getElementById('clearBtn').addEventListener('click', clearForm);
       document.getElementById('refreshBtn').addEventListener('click', loadDocuments);
       document.getElementById('backBtn').addEventListener('click', () => showView('list'));
       document.getElementById('exportBtn').addEventListener('click', exportDocument);
     });
 
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) loadSamples();
+    });
+
+    function configureDocumentScope() {
+      document.querySelectorAll('.tab').forEach(tab => { tab.hidden = !caseId && tab.dataset.tab === 'generate'; });
+      document.getElementById('generate-panel').hidden = !caseId;
+      document.getElementById('generateBtn').disabled = !caseContextLoaded;
+      document.getElementById('caseDocumentNavigation').hidden = !caseId;
+      document.getElementById('documentPageTitle').textContent = caseId ? '法律文书' : '历史文书';
+      document.getElementById('documentListTitle').textContent = caseId ? '本案文书列表' : '历史文书列表';
+      if (!caseId) return;
+      const base = `/cases/${encodeURIComponent(caseId)}`;
+      document.getElementById('caseOverviewLink').href = `${base}?view=overview`;
+      document.getElementById('caseMaterialsLink').href = `${base}?view=materials`;
+      document.getElementById('caseMaterialLink').href = `${base}?view=materials`;
+      document.getElementById('caseDocumentsLink').href = `${base}?view=documents`;
+      const originalView = pageParams.get('view');
+      const view = ['timeline', 'people', 'events', 'evidence'].includes(originalView) ? originalView : 'timeline';
+      document.getElementById('caseAnalysisLink').href = `${base}?view=${view}`;
+      document.getElementById('documentPageDescription').textContent = '正在读取所属案件；材料与研判结果仅在本案范围内使用。';
+    }
+
+    function updateReturnNavigation(documentCaseId = caseId) {
+      const link = document.getElementById('pageBackLink');
+      const label = document.getElementById('pageBackLabel');
+      document.getElementById('caseListLink').hidden = !documentCaseId;
+      if (!documentCaseId) {
+        link.href = '/cases';
+        label.textContent = '返回案件列表';
+        return;
+      }
+      const allowedViews = ['overview', 'materials', 'timeline', 'people', 'events', 'evidence', 'documents'];
+      const requestedView = pageParams.get('view');
+      const view = allowedViews.includes(requestedView) ? requestedView : 'documents';
+      link.href = `/cases/${encodeURIComponent(documentCaseId)}?view=${view}`;
+      label.textContent = view === 'documents' ? '返回本案文书' : '返回本案研判';
+    }
+
     async function loadCaseContext() {
       if (!caseId) return;
       try {
-        const workspace = await fetch(`/api/cases/${caseId}`).then((res) => res.json());
+        const res = await fetch(`/api/cases/${encodeURIComponent(caseId)}`);
+        if (!res.ok) throw new Error('案件不存在或暂时不可用');
+        const workspace = await res.json();
         document.getElementById('caseFileName').value = workspace.case.name;
-        document.getElementById('caseFileName').readOnly = true;
-        document.getElementById('caseUploadGroup').hidden = true;
-        document.getElementById('caseContentGroup').hidden = true;
+        document.getElementById('documentPageDescription').textContent = `${workspace.case.name} · 初稿基于本案材料生成，每段均需律师审阅确认。`;
+        document.title = `${workspace.case.name} · 法律文书 - 案卷研判`;
+        caseContextLoaded = true;
+        document.getElementById('generateBtn').disabled = false;
         if (!document.getElementById('draftingRequirements').value) {
           document.getElementById('draftingRequirements').value = workspace.case.draftingRequirements || '';
         }
       } catch (err) {
+        caseContextLoaded = false;
+        document.getElementById('generateBtn').disabled = true;
+        document.getElementById('documentPageDescription').textContent = '暂无数据，请返回案件列表选择案件。';
         console.error('Failed to load case context:', err);
       }
     }
@@ -500,14 +563,25 @@ legend { margin-bottom: 20px; }
       document.querySelectorAll('.tab').forEach(tab => {
         const activate = () => {
           const tabName = tab.dataset.tab;
-          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+          if (tabName === 'generate' && !caseId) return;
+          document.querySelectorAll('.tab').forEach(t => {
+            const active = t === tab;
+            t.classList.toggle('active', active);
+            t.setAttribute('aria-selected', String(active));
+          });
           document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-          tab.classList.add('active');
           document.getElementById(`${tabName}-panel`).classList.add('active');
           
           if (tabName === 'list') {
             loadDocuments();
             showView('list');
+          } else {
+            currentDocId = null;
+            const url = new URL(window.location.href);
+            url.searchParams.delete('docId');
+            url.searchParams.set('tab', tabName);
+            history.replaceState({}, '', url.pathname + url.search);
+            updateReturnNavigation();
           }
         };
         tab.addEventListener('click', activate);
@@ -520,32 +594,6 @@ legend { margin-bottom: 20px; }
       });
     }
 
-    function updateCaseUploadStatus() {
-      const files = Array.from(document.getElementById('caseUpload').files);
-      const status = document.getElementById('caseUploadStatus');
-      if (!files.length) {
-        status.textContent = '最多 20 份；单份不超过 20MB；文件合计不超过 50MB；提取文字与补充正文合计不超过 2MB。';
-        return;
-      }
-      const totalSize = files.reduce((sum, file) => sum + file.size, 0);
-      const names = files.slice(0, 3).map((file) => file.name).join('、');
-      const remaining = files.length > 3 ? ` 等 ${files.length} 份文件` : '';
-      status.textContent = `已选择 ${files.length} 份，共 ${formatFileSize(totalSize)}：${names}${remaining}`;
-    }
-
-    function formatFileSize(bytes) {
-      if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
-      return `${Math.ceil(bytes / 1024)}KB`;
-    }
-
-    function readBase64(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
-        reader.onerror = () => reject(new Error('读取案卷文件失败'));
-        reader.readAsDataURL(file);
-      });
-    }
     
     // ==================== 加载文书类型 ====================
     async function loadDocTypes() {
@@ -578,45 +626,61 @@ legend { margin-bottom: 20px; }
     async function loadSamples() {
       try {
         const res = await fetch('/api/samples');
-        samples = await res.json();
-        const select = document.getElementById('sampleSelect');
-        samples.forEach(s => {
-          const opt = document.createElement('option');
-          opt.value = s.id;
-          opt.textContent = `${s.name} (${s.docType})`;
-          select.appendChild(opt);
-        });
+        if (!res.ok) throw new Error('样本暂时不可用');
+        const data = await res.json();
+        samples = Array.isArray(data) ? data : [];
       } catch (err) {
+        samples = [];
         console.error('Failed to load samples:', err);
       }
+      renderSampleOptions();
+    }
+
+    function renderSampleOptions() {
+      const select = document.getElementById('sampleSelect');
+      const selectedType = document.getElementById('docType').value;
+      const previousValue = select.value;
+      const available = samples.filter(sample => !selectedType || sample.type === selectedType);
+      const defaultOption = document.createElement('option');
+      defaultOption.value = '';
+
+      if (samples.length === 0) {
+        defaultOption.textContent = '暂无参考样本';
+        select.replaceChildren(defaultOption);
+        select.disabled = true;
+        return;
+      }
+
+      if (available.length === 0) {
+        defaultOption.textContent = '该文书类型暂无参考样本';
+        select.replaceChildren(defaultOption);
+        select.disabled = true;
+        return;
+      }
+
+      defaultOption.textContent = '不使用参考样本';
+      select.replaceChildren(defaultOption);
+      available.forEach(sample => {
+        const option = document.createElement('option');
+        option.value = sample.id;
+        option.textContent = `${sample.title}（${sample.typeName}）`;
+        select.appendChild(option);
+      });
+      select.disabled = false;
+      select.value = available.some(sample => sample.id === previousValue) ? previousValue : '';
     }
     
     // ==================== 生成文书 ====================
     async function generateDocument() {
+      if (!caseId || !caseContextLoaded) return;
       const docType = document.getElementById('docType').value;
       const caseFileName = document.getElementById('caseFileName').value.trim();
-      const caseContent = document.getElementById('caseContent').value.trim();
-      const caseUploads = Array.from(document.getElementById('caseUpload').files);
       const draftingRequirements = document.getElementById('draftingRequirements').value.trim();
       const model = document.getElementById('modelSelect').value;
       const sampleId = document.getElementById('sampleSelect').value || undefined;
       
-      if (!docType || !caseFileName || (!caseId && !caseContent && caseUploads.length === 0)) {
-        showAlert('generateAlert', 'error', '请填写文书类型和案卷名称，并粘贴案卷正文或上传案卷文件');
-        return;
-      }
-      if (caseUploads.length > 20) {
-        showAlert('generateAlert', 'error', '案卷文件最多上传 20 份');
-        return;
-      }
-      const oversizedFile = caseUploads.find((file) => file.size > 20 * 1024 * 1024);
-      if (oversizedFile) {
-        showAlert('generateAlert', 'error', `“${oversizedFile.name}”超过单份 20MB 限制`);
-        return;
-      }
-      const totalUploadSize = caseUploads.reduce((sum, file) => sum + file.size, 0);
-      if (totalUploadSize > 50 * 1024 * 1024) {
-        showAlert('generateAlert', 'error', '案卷文件合计不能超过 50MB');
+      if (!docType) {
+        showAlert('generateAlert', 'error', '请选择文书类型');
         return;
       }
       
@@ -627,11 +691,7 @@ legend { margin-bottom: 20px; }
       showAlert('generateAlert', 'info', '正在调用大模型生成文书，请耐心等待（约30-60秒）...');
       
       try {
-        const uploadedFiles = [];
-        if (!caseId) {
-          for (const file of caseUploads) uploadedFiles.push({ name: file.name, base64: await readBase64(file) });
-        }
-        const endpoint = caseId ? `/api/cases/${caseId}/documents` : '/api/documents';
+        const endpoint = `/api/cases/${caseId}/documents`;
         const scope = {
           personId: pageParams.get('person'),
           eventId: pageParams.get('event'),
@@ -641,8 +701,7 @@ legend { margin-bottom: 20px; }
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            docType, caseFileName, caseContent, model, sampleId, draftingRequirements,
-            caseUploads: uploadedFiles, scope
+            docType, caseFileName, model, sampleId, draftingRequirements, scope
           })
         });
         
@@ -652,32 +711,23 @@ legend { margin-bottom: 20px; }
         }
         
         const doc = await res.json();
-        showAlert('generateAlert', 'success', `文书生成成功！ID: ${doc.id}`);
-        clearForm();
-        
-        // 切换到列表页并打开编辑视图
-        setTimeout(() => {
-          document.querySelector('.tab[data-tab="list"]').click();
-          loadDocuments().then(() => openDocument(doc.id));
-        }, 1500);
+        showAlert('generateAlert', 'success', '初稿已生成，可继续审阅或调整要求后重新生成。');
+        await loadDocuments();
+        await openDocument(doc.id);
         
       } catch (err) {
         showAlert('generateAlert', 'error', `生成失败：${err.message}`);
       } finally {
         btn.disabled = false;
-        btnText.textContent = '生成文书';
+        btnText.textContent = '生成初稿';
       }
     }
     
     function clearForm() {
       document.getElementById('docType').value = '';
-      document.getElementById('caseFileName').value = '';
-      document.getElementById('caseContent').value = '';
-      document.getElementById('caseUpload').value = '';
       document.getElementById('draftingRequirements').value = '';
-      updateCaseUploadStatus();
       loadEnabledProviders();
-      document.getElementById('sampleSelect').value = '';
+      renderSampleOptions();
       document.getElementById('generateAlert').innerHTML = '';
     }
     
@@ -690,6 +740,7 @@ legend { margin-bottom: 20px; }
         const res = await fetch('/api/documents');
         let docs = await res.json();
         if (caseId) docs = docs.filter(doc => doc.caseId === caseId);
+        else docs = docs.filter(doc => !doc.caseId);
         
         if (docs.length === 0) {
           container.innerHTML = '<div class="empty-state">暂无数据</div>';
@@ -700,7 +751,7 @@ legend { margin-bottom: 20px; }
           const statusClass = `status-${doc.status}`;
           const statusText = { draft: '草稿', reviewing: '审阅中', completed: '已完成' }[doc.status];
           return `
-            <div class="doc-card" onclick="openDocument('${doc.id}')">
+            <a class="doc-card" href="/documents?${caseId ? `caseId=${encodeURIComponent(caseId)}&` : ''}docId=${encodeURIComponent(doc.id)}&view=${encodeURIComponent(pageParams.get('view') || 'documents')}">
               <div class="doc-card-header">
                 <span class="doc-type">${doc.typeName}</span>
                 <span class="doc-status ${statusClass}">${statusText}</span>
@@ -708,13 +759,9 @@ legend { margin-bottom: 20px; }
               <div class="doc-meta">
                 案卷：${doc.caseFileName} | 模型：${doc.model} | 创建时间：${new Date(doc.createdAt).toLocaleString('zh-CN')}
               </div>
-            </div>
+            </a>
           `;
         }).join('');
-        if (requestedDocId && !requestedDocOpened && docs.some((doc) => doc.id === requestedDocId)) {
-          requestedDocOpened = true;
-          openDocument(requestedDocId);
-        }
       } catch (err) {
         console.error('Failed to load documents:', err);
         container.innerHTML = '<div class="empty-state">暂无数据</div>';
@@ -728,10 +775,25 @@ legend { margin-bottom: 20px; }
       
       try {
         const res = await fetch(`/api/documents/${docId}`);
+        if (!res.ok) throw new Error('文书不存在或暂时无法读取');
         const doc = await res.json();
+        if (caseId && doc.caseId !== caseId) throw new Error('文书不属于当前案件');
+        if (!caseId && doc.caseId) {
+          caseId = doc.caseId;
+          configureDocumentScope();
+          await loadCaseContext();
+          await loadDocuments();
+        }
+        updateReturnNavigation(doc.caseId || caseId);
+        const url = new URL(window.location.href);
+        if (caseId) url.searchParams.set('caseId', caseId);
+        url.searchParams.set('docId', doc.id);
+        url.searchParams.set('tab', 'list');
+        history.replaceState({}, '', url.pathname + url.search);
         
         document.getElementById('editDocTitle').textContent = doc.typeName;
-        document.getElementById('editDocMeta').textContent = `案卷：${doc.caseFileName} | 模型：${doc.model} | 创建于：${new Date(doc.createdAt).toLocaleString('zh-CN')}`;
+        const sampleMeta = doc.sampleTitle ? ` | 参考样本：${doc.sampleTitle}` : '';
+        document.getElementById('editDocMeta').textContent = `案卷：${doc.caseFileName} | 模型：${doc.model}${sampleMeta} | 创建于：${new Date(doc.createdAt).toLocaleString('zh-CN')}`;
         
         const container = document.getElementById('sectionsContainer');
         container.innerHTML = doc.sections.map((sec) => {
@@ -748,7 +810,7 @@ legend { margin-bottom: 20px; }
               <div class="section-content">${sec.content}</div>
               ${sec.sourceRefs && sec.sourceRefs.length ? `
                 <div class="row">${sec.sourceRefs.map((ref) => `
-                  <a class="tag" href="/cases/${encodeURIComponent(doc.caseId)}?view=overview&source=${encodeURIComponent(ref.chunkId)}">${ref.fileName || '案卷材料'}${ref.pageStart ? ` · 第${ref.pageStart}页` : ''}</a>
+                  <a class="tag" href="/cases/${encodeURIComponent(doc.caseId)}?view=overview&source=${encodeURIComponent(ref.chunkId)}&returnDoc=${encodeURIComponent(doc.id)}">${ref.fileName || '案卷材料'}${ref.pageStart ? ` · 第${ref.pageStart}页` : ''}</a>
                 `).join('')}</div>
               ` : ''}
               <div class="section-actions">
@@ -848,8 +910,23 @@ legend { margin-bottom: 20px; }
     
     // ==================== 工具函数 ====================
     function showView(view) {
+      document.querySelectorAll('.tab').forEach(tab => {
+        const active = tab.dataset.tab === 'list';
+        tab.classList.toggle('active', active);
+        tab.setAttribute('aria-selected', String(active));
+      });
+      document.querySelectorAll('.panel').forEach(panel => panel.classList.remove('active'));
+      document.getElementById('list-panel').classList.add('active');
       document.querySelector('.list-view').style.display = view === 'list' ? 'block' : 'none';
       document.getElementById('editView').style.display = view === 'edit' ? 'block' : 'none';
+      if (view === 'list') {
+        currentDocId = null;
+        const url = new URL(window.location.href);
+        url.searchParams.delete('docId');
+        url.searchParams.set('tab', 'list');
+        history.replaceState({}, '', url.pathname + url.search);
+        updateReturnNavigation();
+      }
     }
     
     function showAlert(containerId, type, message) {

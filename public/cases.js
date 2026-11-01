@@ -3,6 +3,10 @@
   const MAX_FILE_SIZE = 100 * 1024 * 1024;
   const MAX_FILES = 500;
   const MAX_TOTAL_SIZE = 2 * 1024 * 1024 * 1024;
+  const MAX_FEEDBACK_IMAGES = 5;
+  const MAX_FEEDBACK_IMAGE_SIZE = 5 * 1024 * 1024;
+  const FEEDBACK_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
+  let feedbackFiles = [];
 
   function escapeHtml(value) {
     return String(value || '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[char]);
@@ -141,9 +145,114 @@
     }
   }
 
+  function setFeedbackStatus(message, state = '') {
+    const status = document.getElementById('feedbackStatus');
+    status.textContent = message;
+    status.className = `feedback-result result${state ? ` ${state}` : ''}`;
+  }
+
+  function validateFeedbackFiles(files) {
+    if (files.length > MAX_FEEDBACK_IMAGES) throw new Error('最多上传 5 张图片');
+    for (const file of files) {
+      if (!FEEDBACK_IMAGE_TYPES.has(file.type)) throw new Error(`${file.name} 仅支持 PNG、JPG 或 WEBP`);
+      if (file.size > MAX_FEEDBACK_IMAGE_SIZE) throw new Error(`${file.name} 超过单张 5MB 上限`);
+    }
+  }
+
+  function renderFeedbackFiles() {
+    const list = document.getElementById('feedbackFileList');
+    list.replaceChildren(...feedbackFiles.map((file) => {
+      const row = document.createElement('div');
+      row.className = 'feedback-file-item';
+      const name = document.createElement('span');
+      name.textContent = file.name;
+      const size = document.createElement('strong');
+      size.textContent = formatBytes(file.size);
+      row.append(name, size);
+      return row;
+    }));
+  }
+
+  function fileToPayload(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.addEventListener('load', () => resolve({ name: file.name, type: file.type, data: String(reader.result).split(',')[1] || '' }));
+      reader.addEventListener('error', () => reject(new Error(`${file.name} 读取失败，请重新选择`)));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function closeFeedbackDialog() {
+    document.getElementById('feedbackDialog').close();
+  }
+
+  async function submitFeedback(event) {
+    event.preventDefault();
+    const button = document.getElementById('feedbackSubmit');
+    try {
+      validateFeedbackFiles(feedbackFiles);
+      button.disabled = true;
+      setFeedbackStatus('正在提交…');
+      const images = await Promise.all(feedbackFiles.map(fileToPayload));
+      const result = await request('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: document.getElementById('feedbackDescription').value.trim(),
+          pageUrl: window.location.pathname,
+          images,
+        }),
+      });
+      const sent = result.notificationStatus === 'sent';
+      setFeedbackStatus(sent ? '反馈已提交，邮件通知已发送。' : '反馈已保存，邮件通知暂未发送。', sent ? 'ok' : 'warn');
+      document.getElementById('feedbackForm').reset();
+      feedbackFiles = [];
+      renderFeedbackFiles();
+    } catch (error) {
+      setFeedbackStatus(error.message || '反馈提交未完成，请重试', 'err');
+    } finally {
+      button.disabled = false;
+    }
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
+    const newCaseButton = document.getElementById('newCaseButton');
+    function toggleNewCase(open) {
+      document.getElementById('newCasePanel').hidden = !open;
+      document.getElementById('caseListSection').hidden = open;
+      newCaseButton.hidden = open;
+      newCaseButton.setAttribute('aria-expanded', String(open));
+      (open ? document.getElementById('caseName') : newCaseButton).focus();
+    }
+    newCaseButton.addEventListener('click', () => toggleNewCase(true));
+    document.getElementById('cancelNewCaseButton').addEventListener('click', () => toggleNewCase(false));
     document.getElementById('caseFiles').addEventListener('change', (event) => renderSelectedFiles(Array.from(event.target.files || [])));
     document.getElementById('caseForm').addEventListener('submit', createAndUploadCase);
+    const feedbackDialog = document.getElementById('feedbackDialog');
+    document.getElementById('feedbackTrigger').addEventListener('click', () => {
+      setFeedbackStatus('');
+      feedbackDialog.showModal();
+      document.body.classList.add('feedback-open');
+      document.getElementById('feedbackDescription').focus();
+    });
+    document.getElementById('feedbackClose').addEventListener('click', closeFeedbackDialog);
+    document.getElementById('feedbackCancel').addEventListener('click', closeFeedbackDialog);
+    feedbackDialog.addEventListener('close', () => document.body.classList.remove('feedback-open'));
+    feedbackDialog.addEventListener('click', (event) => { if (event.target === feedbackDialog) closeFeedbackDialog(); });
+    document.getElementById('feedbackImages').addEventListener('change', (event) => {
+      try {
+        const files = Array.from(event.target.files || []);
+        validateFeedbackFiles(files);
+        feedbackFiles = files;
+        setFeedbackStatus('');
+      } catch (error) {
+        event.target.value = '';
+        feedbackFiles = [];
+        setFeedbackStatus(error.message, 'err');
+      }
+      renderFeedbackFiles();
+    });
+    document.getElementById('feedbackForm').addEventListener('submit', submitFeedback);
     loadModels();
     loadCases();
   });

@@ -2,6 +2,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const { extractCaseFile } = require('./case-files');
 
 const TYPES = {
   evidence_opinion: '质证意见',
@@ -21,7 +22,7 @@ function checkMagic(ext, buf) {
   if (ext === 'docx' && buf.subarray(0, 2).toString() !== 'PK') throw new Error('不是有效的 DOCX 文件');
 }
 
-function createSample({ type, title, text, fileName, fileBase64, confirmedRedacted } = {}) {
+async function createSample({ type, title, text, fileName, fileBase64, confirmedRedacted } = {}) {
   if (!TYPES[type]) throw new Error('文书类型无效');
   if (confirmedRedacted !== true) throw new Error('请先确认样本已脱敏');
   title = String(title || '').trim();
@@ -39,7 +40,17 @@ function createSample({ type, title, text, fileName, fileBase64, confirmedRedact
     if (!buf.length) throw new Error('文件为空');
     if (buf.length > MAX_FILE) throw new Error('文件不能超过 10MB');
     checkMagic(ext, buf);
-    if (ext === 'txt' && !text) text = buf.toString('utf8').trim();
+    if (!text) {
+      try {
+        text = (await extractCaseFile(fileName, fileBase64)).text;
+      } catch (error) {
+        if (/未能从案卷文件中提取文字/.test(error.message)) {
+          throw new Error('未能从样本文件中提取文字，请上传含可复制文本的文件或粘贴正文');
+        }
+        throw error;
+      }
+    }
+    if (text.length > MAX_TEXT) throw new Error('正文过长');
     file = { name: path.basename(String(fileName)), ext, size: buf.length };
     fs.mkdirSync(dir(), { recursive: true });
     fs.writeFileSync(path.join(dir(), `${id}.${ext}`), buf);

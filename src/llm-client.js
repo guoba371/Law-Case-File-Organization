@@ -38,7 +38,9 @@ async function callChatJson(providerId, messages, options = {}, fetchImpl = fetc
         ...options,
         responseFormat: { type: 'json_object' },
       }, fetchImpl);
-      return JSON.parse(stripJsonFence(content));
+      const parsed = JSON.parse(stripJsonFence(content));
+      if (options.validate) options.validate(parsed);
+      return parsed;
     } catch (error) {
       lastError = error;
     }

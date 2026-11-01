@@ -25,7 +25,8 @@
       });
     });
 
-    const currentPath = window.location.pathname === '/' ? '/cases' : window.location.pathname;
+    const pathname = window.location.pathname;
+    const currentPath = pathname === '/' || pathname === '/documents' || pathname.startsWith('/cases/') ? '/cases' : pathname;
     document.querySelectorAll('[data-nav-path]').forEach((link) => {
       if (link.dataset.navPath === currentPath) link.setAttribute('aria-current', 'page');
     });

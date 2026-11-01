@@ -5,11 +5,14 @@ const test = require('node:test');
 
 const publicDir = path.join(__dirname, '..', 'public');
 
-test('案件工作台包含七个视图和可核验的来源抽屉', () => {
+test('案件工作台将四个研判视图归入案情研判并保留来源抽屉', () => {
   const html = fs.readFileSync(path.join(publicDir, 'case-workspace.html'), 'utf8');
-  for (const label of ['案件概览', '案卷材料', '时间轴', '人物关系', '事件进展', '证据研判', '法律文书']) {
+  for (const label of ['概览', '案卷材料', '案情研判', '时间轴', '人物关系', '事件进展', '证据研判', '法律文书']) {
     assert.match(html, new RegExp(`>${label}<`));
   }
+  const mainNavigation = html.match(/<nav class="case-sidebar"[^>]*>([\s\S]*?)<\/nav>/)[1];
+  assert.deepEqual([...mainNavigation.matchAll(/data-case-section="([^"]+)"/g)].map((match) => match[1]), ['overview', 'materials', 'analysis', 'documents']);
+  assert.match(html, /id="analysisNavigation"[^>]*hidden/);
   assert.match(html, /class="case-sidebar"/);
   assert.match(html, /class="case-main"/);
   assert.match(html, /class="source-drawer/);

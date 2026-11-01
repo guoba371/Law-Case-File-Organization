@@ -1,17 +1,20 @@
 (function () {
   const EVENT_LANES = ['案件事实', '人员行为', '资金与物品', '侦查程序', '强制措施'];
   const TERMINAL_STATES = new Set(['ready', 'partial_ready', 'failed']);
+  const ANALYSIS_VIEWS = ['timeline', 'people', 'events', 'evidence'];
   const viewDefinitions = {
     overview: ['案件概览', '案件研判总览'],
     materials: ['案卷材料', '材料处理与覆盖'],
     timeline: ['时间轴', '关键时间与行为'],
-    people: ['人物关系', '人员与材料共同提及'],
+    people: ['人物关系', '人物关系与材料关联'],
     events: ['事件进展', '事实与程序进展'],
     evidence: ['证据研判', '证据命题与材料'],
     documents: ['法律文书', '案件相关法律文书'],
   };
   let workspace = null;
   let pollTimer = null;
+  let lastAnalysisView = 'timeline';
+  let activeDiagram = null;
 
   function escapeHtml(value) {
     return String(value || '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[char]);
@@ -56,8 +59,11 @@
   }
 
   function navigateWithScope(view, scope = {}) {
+    if (view === 'analysis') view = lastAnalysisView;
     const params = new URLSearchParams(location.search);
     params.set('view', view);
+    params.delete('source');
+    closeSourceDrawer();
     for (const [key, value] of Object.entries(scope)) {
       if (value) params.set(key, value);
       else params.delete(key);
@@ -121,30 +127,20 @@
 
   function renderPeopleGraph(people, relations) {
     if (!people.length) return renderEmpty();
-    const relationTypes = [...new Set(relations.map((item) => item.type).filter(Boolean))];
-    const width = 760;
-    const height = 500;
-    const centerX = width / 2;
-    const centerY = height / 2;
-    const radius = Math.min(width, height) * 0.34;
-    const positions = new Map(people.map((person, index) => [person.id, { x: centerX + Math.cos((index / people.length) * Math.PI * 2 - Math.PI / 2) * radius, y: centerY + Math.sin((index / people.length) * Math.PI * 2 - Math.PI / 2) * radius }]));
+    const personName = (id) => people.find((person) => person.id === id)?.name || id || '人员待确认';
     const container = document.createElement('div');
-    container.className = 'people-graph-wrap';
+    container.className = 'people-records';
     container._sourceItems = [...relations, ...people];
     container.innerHTML = `
-      <div class="graph-controls"><label>关系类型<select id="relationTypeFilter"><option value="">全部</option>${relationTypes.map((type) => `<option>${escapeHtml(type)}</option>`).join('')}</select></label></div>
-      <div class="people-graph-stage">
-        <svg class="people-edges" viewBox="0 0 ${width} ${height}" role="img" aria-label="人物关系图">${relations.map((relation, index) => { const from = positions.get(relation.from); const to = positions.get(relation.to); return from && to ? `<line data-relation-type="${escapeHtml(relation.type)}" data-source-index="${index}" x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}"></line>` : ''; }).join('')}</svg>
-        ${people.map((person, index) => { const point = positions.get(person.id); return `<button class="person-node" type="button" data-source-index="${relations.length + index}" style="left:${(point.x / width) * 100}%;top:${(point.y / height) * 100}%"><strong>${escapeHtml(person.name)}</strong><span>${escapeHtml(person.role || '身份待确认')}</span></button>`; }).join('')}
-      </div>`;
-    container.querySelector('#relationTypeFilter').addEventListener('change', (event) => {
-      container.querySelectorAll('[data-relation-type]').forEach((line) => { line.style.display = !event.target.value || line.dataset.relationType === event.target.value ? '' : 'none'; });
-    });
+      <div class="material-list">${people.map((person, index) => `<button class="material-row person-record" type="button" data-source-index="${relations.length + index}"><strong>${escapeHtml(person.name)}</strong><span>${escapeHtml(person.role || '身份待确认')}</span></button>`).join('')}</div>
+      <div class="material-list">${relations.map((relation, index) => `
+        <button class="material-row" type="button" data-relation-type="${escapeHtml(relation.type)}" data-source-index="${index}"><div><strong>${escapeHtml(personName(relation.from))} — ${escapeHtml(personName(relation.to))}</strong><span>${escapeHtml(relation.label || relation.type || '关系待核对')}</span></div><small>候选 · 核验来源</small></button>`).join('')}</div>`;
     bindSourceButtons(container);
     return container;
   }
 
   function renderEventLanes(events) {
+    if (!events.length) return renderEmpty();
     const container = document.createElement('div');
     container.className = 'event-lanes';
     container._sourceItems = events;
@@ -161,7 +157,7 @@
     const container = document.createElement('div');
     container.className = 'evidence-grid';
     container._sourceItems = items;
-    container.innerHTML = items.map((item, index) => `<button class="evidence-card" type="button" data-source-index="${index}"><span>${escapeHtml(item.direction || '方向待确认')}</span><strong>${escapeHtml(item.proposition || '证据命题')}</strong><p>${escapeHtml(item.material || '暂无数据')}</p><small>候选 · 点击核验来源</small></button>`).join('');
+    container.innerHTML = items.map((item, index) => `<button class="evidence-card" type="button" data-source-index="${index}"><span>${escapeHtml(item.direction || '方向待确认')}</span><strong>${escapeHtml(item.proposition || item.material || '证据命题待核对')}</strong>${item.proposition && item.material ? `<p>${escapeHtml(item.material)}</p>` : ''}${item.detail ? `<p>${escapeHtml(item.detail)}</p>` : ''}<small>候选 · 点击核验来源</small></button>`).join('');
     bindSourceButtons(container);
     return container;
   }
@@ -170,7 +166,7 @@
     const documents = workspace.documents || [];
     const list = documents.length ? `<div class="material-list">${documents.map((document) => `
       <a class="material-row" href="/documents?caseId=${encodeURIComponent(workspace.case.id)}&docId=${encodeURIComponent(document.id)}"><div><strong>${escapeHtml(document.typeName)}</strong><span>${new Date(document.updatedAt).toLocaleString('zh-CN')} · ${escapeHtml(document.model)}</span></div><span class="case-status">${document.status === 'completed' ? '已完成' : '审阅中'}</span></a>`).join('')}</div>` : renderEmpty();
-    return `<div class="workspace-section"><h3>从案件研判生成法律文书</h3><p class="case-summary-text">可生成质证意见、审查起诉阶段法律意见书、羁押必要性审查申请。初稿按段落生成，必须由律师逐段修改并确认。</p><a class="btn btn-primary" href="/documents?caseId=${encodeURIComponent(workspace.case.id)}">生成本案文书</a></div>${list}`;
+    return `<p class="case-summary-text">本案材料、研判图表与文书相互关联。支持质证意见、审查起诉阶段法律意见书和羁押必要性审查申请，初稿需由律师逐段确认。</p>${list}`;
   }
 
   function openSourceFromQuery() {
@@ -182,14 +178,25 @@
   }
 
   function activateCaseView(view, updateUrl = true) {
+    activeDiagram?.destroy();
+    activeDiagram = null;
+    if (view === 'analysis') view = lastAnalysisView;
     const active = viewDefinitions[view] ? view : 'overview';
+    const isAnalysis = ANALYSIS_VIEWS.includes(active);
+    if (isAnalysis) lastAnalysisView = active;
     if (updateUrl) {
       const params = new URLSearchParams(location.search);
       params.set('view', active);
       history.pushState({}, '', `${location.pathname}?${params.toString()}`);
     }
-    document.querySelectorAll('[data-case-view]').forEach((button) => button.classList.toggle('active', button.dataset.caseView === active));
-    document.getElementById('viewKicker').textContent = viewDefinitions[active][0];
+    document.querySelectorAll('[data-case-view]').forEach((button) => {
+      const selected = button.dataset.caseView === active || (button.dataset.caseSection === 'analysis' && isAnalysis);
+      button.classList.toggle('active', selected);
+      if (selected) button.setAttribute('aria-current', 'page');
+      else button.removeAttribute('aria-current');
+    });
+    document.getElementById('analysisNavigation').hidden = !isAnalysis;
+    document.getElementById('caseWorkspaceLayout')?.classList.toggle('people-view', active === 'people');
     document.getElementById('viewTitle').textContent = viewDefinitions[active][1];
     document.getElementById('generateDocumentLink').href = `/documents?caseId=${encodeURIComponent(workspace?.case?.id || caseIdFromPath())}&view=${active}`;
     const target = document.getElementById('caseViewContent');
@@ -202,9 +209,24 @@
     if (active === 'events') content = renderEventLanes(workspace.views.events || []);
     if (active === 'evidence') content = renderEvidence(workspace.views.evidence || []);
     if (active === 'documents') content = renderDocuments();
+    if (active === 'people' && window.createPeopleGraph) {
+      if (typeof content === 'string') { const records = document.createElement('div'); records.innerHTML = content; content = records; }
+      activeDiagram = window.createPeopleGraph({
+        people: workspace.views.people || [], relations: workspace.views.relations || [],
+        records: content, onSource: openSourceDrawer,
+      });
+      content = activeDiagram.element;
+    } else if (typeof content !== 'string' && ['timeline', 'people', 'events'].includes(active) && window.createCaseDiagram) {
+      activeDiagram = window.createCaseDiagram({
+        caseId: workspace.case.id, view: active, records: content, onSource: openSourceDrawer,
+        relationTypes: [...new Set((workspace.views.relations || []).map((relation) => relation.type).filter(Boolean))],
+      });
+      content = activeDiagram.element;
+    }
     target.replaceChildren();
     if (typeof content === 'string') target.innerHTML = content;
     else target.append(content);
+    if (activeDiagram) activeDiagram.load();
   }
 
   function renderWorkspace() {
@@ -246,14 +268,22 @@
   }
 
   document.addEventListener('DOMContentLoaded', async () => {
+    const returnDoc = new URLSearchParams(location.search).get('returnDoc');
+    const returnLink = document.getElementById('returnDocumentLink');
+    returnLink.hidden = !returnDoc;
+    if (returnDoc) returnLink.href = `/documents?caseId=${encodeURIComponent(caseIdFromPath())}&docId=${encodeURIComponent(returnDoc)}`;
     document.querySelectorAll('[data-case-view]').forEach((button) => button.addEventListener('click', () => navigateWithScope(button.dataset.caseView)));
     document.getElementById('closeSourceDrawer').addEventListener('click', closeSourceDrawer);
     document.getElementById('sourceBackdrop').addEventListener('click', closeSourceDrawer);
-    window.addEventListener('popstate', () => activateCaseView(new URLSearchParams(location.search).get('view') || 'overview', false));
+    window.addEventListener('popstate', () => {
+      closeSourceDrawer();
+      activateCaseView(new URLSearchParams(location.search).get('view') || 'overview', false);
+      openSourceFromQuery();
+    });
     await loadWorkspace();
     if (workspace && !TERMINAL_STATES.has(workspace.case.status)) pollTimer = setInterval(pollCaseStatus, 1500);
   });
-  window.addEventListener('beforeunload', () => { if (pollTimer) clearInterval(pollTimer); });
+  window.addEventListener('beforeunload', () => { if (pollTimer) clearInterval(pollTimer); activeDiagram?.destroy(); });
 
   window.activateCaseView = activateCaseView;
   window.openSourceDrawer = openSourceDrawer;

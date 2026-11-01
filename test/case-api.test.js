@@ -37,7 +37,7 @@ test('案件 API 支持创建、二进制分片、处理、查询和删除', asy
   const base = `http://127.0.0.1:${server.address().port}`;
   const homeRes = await fetch(`${base}/`);
   assert.equal(homeRes.status, 200);
-  assert.match(await homeRes.text(), /<title>案件 - 案卷研判<\/title>/);
+  assert.match(await homeRes.text(), /<title>案件工作台 - 案卷研判<\/title>/);
 
   const createRes = await fetch(`${base}/api/cases`, {
     method: 'POST',

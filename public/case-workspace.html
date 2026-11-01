@@ -13,37 +13,43 @@
     <div class="app-nav-shell">
       <a class="brand" href="/cases"><span class="brand-mark">律</span><span>案卷研判</span></a>
       <nav class="app-nav" aria-label="主导航">
-        <a href="/cases" data-nav-path="/cases">案件</a>
-        <a href="/documents" data-nav-path="/documents">全部文书</a>
-        <a href="/samples" data-nav-path="/samples">样本</a>
-        <a href="/settings" data-nav-path="/settings">模型</a>
+        <a href="/cases" data-nav-path="/cases">案件工作台</a>
+        <a href="/samples" data-nav-path="/samples">文书样本</a>
+        <a href="/settings" data-nav-path="/settings">系统设置</a>
       </nav>
       <div class="nav-actions"><button class="theme-toggle" type="button" data-theme-toggle><span class="theme-option theme-option-light">浅色</span><span class="theme-option theme-option-dark">深色</span></button></div>
     </div>
   </header>
 
   <main class="workspace-shell">
+    <nav class="page-return" aria-label="返回导航">
+      <a class="btn btn-secondary back-link" href="/cases"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m12 5-7 7 7 7M5 12h14"/></svg>返回案件列表</a>
+      <a id="returnDocumentLink" class="btn btn-secondary back-link" href="/cases" hidden>返回刚才的文书</a>
+    </nav>
     <section class="workspace-heading">
-      <div><a class="workspace-back" href="/cases">返回案件</a><h1 id="caseTitle">案件研判</h1><p id="caseSubtitle">正在读取案件信息</p></div>
+      <div><h1 id="caseTitle">案件研判</h1><p id="caseSubtitle">正在读取案件信息</p></div>
       <div class="workspace-status-block"><span id="caseStatus" class="case-status">等待处理</span><span id="caseProgressText" class="workspace-progress-text">0%</span></div>
       <div class="workspace-progress"><div id="caseProgressBar" class="workspace-progress-bar"></div></div>
     </section>
 
-    <div class="case-workspace-layout">
+    <div id="caseWorkspaceLayout" class="case-workspace-layout">
       <nav class="case-sidebar" aria-label="案件内导航">
-        <button type="button" data-case-view="overview">案件概览</button>
-        <button type="button" data-case-view="materials">案卷材料</button>
-        <button type="button" data-case-view="timeline">时间轴</button>
-        <button type="button" data-case-view="people">人物关系</button>
-        <button type="button" data-case-view="events">事件进展</button>
-        <button type="button" data-case-view="evidence">证据研判</button>
-        <button type="button" data-case-view="documents">法律文书</button>
+        <button type="button" data-case-section="overview" data-case-view="overview">概览</button>
+        <button type="button" data-case-section="materials" data-case-view="materials">案卷材料</button>
+        <button type="button" data-case-section="analysis" data-case-view="analysis">案情研判</button>
+        <button type="button" data-case-section="documents" data-case-view="documents">法律文书</button>
       </nav>
 
       <section class="case-main">
+        <nav id="analysisNavigation" class="analysis-navigation" aria-label="案情研判视图" hidden>
+          <button type="button" data-case-view="timeline">时间轴</button>
+          <button type="button" data-case-view="people">人物关系</button>
+          <button type="button" data-case-view="events">事件进展</button>
+          <button type="button" data-case-view="evidence">证据研判</button>
+        </nav>
         <div class="case-view-toolbar">
-          <div><p id="viewKicker" class="page-kicker">案件概览</p><h2 id="viewTitle">案件研判总览</h2></div>
-          <a id="generateDocumentLink" class="btn btn-primary" href="/documents">生成文书</a>
+          <h2 id="viewTitle">案件概览</h2>
+          <a id="generateDocumentLink" class="btn btn-primary" href="/cases">生成本案文书</a>
         </div>
         <div id="caseViewContent" class="case-view-content"><div class="empty-state">暂无数据</div></div>
       </section>
@@ -61,6 +67,9 @@
     </div>
   </main>
   <div id="sourceBackdrop" class="source-backdrop"></div>
+  <script src="/case-diagrams.js"></script>
+  <script src="/people-graph-data.js"></script>
+  <script src="/people-graph.js"></script>
   <script src="/case-workspace.js"></script>
 </body>
 </html>

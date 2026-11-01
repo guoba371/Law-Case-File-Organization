@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <title>模型设置 - 案卷研判</title>
+  <title>系统设置 - 案卷研判</title>
   <script>
 (function () {
   const storageKey = 'law-case-theme';
@@ -33,7 +33,8 @@
       });
     });
 
-    const currentPath = window.location.pathname === '/' ? '/settings' : window.location.pathname;
+    const pathname = window.location.pathname;
+    const currentPath = pathname === '/' || pathname === '/documents' || pathname.startsWith('/cases/') ? '/cases' : pathname;
     document.querySelectorAll('[data-nav-path]').forEach((link) => {
       if (link.dataset.navPath === currentPath) link.setAttribute('aria-current', 'page');
     });
@@ -343,6 +344,10 @@ legend { margin-bottom: 20px; }
   .app-header, .surface, .card, .section-card, .doc-card { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--surface-solid); }
 }
 
+.page-return { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 24px; }
+.page-return .back-link { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; text-decoration: none; }
+.back-link svg { width: 18px; height: 18px; flex-shrink: 0; }
+.page-intro h1 { font-size: 32px; letter-spacing: -0.03em; }
 </style>
 </head>
 <body>
@@ -350,18 +355,19 @@ legend { margin-bottom: 20px; }
   <div class="app-nav-shell">
     <a class="brand" href="/cases"><span class="brand-mark">律</span><span>案卷研判</span></a>
     <nav class="app-nav" aria-label="主导航">
-      <a href="/cases" data-nav-path="/cases">案件</a>
-      <a href="/documents" data-nav-path="/documents">全部文书</a>
-      <a href="/samples" data-nav-path="/samples">样本</a>
-      <a href="/settings" data-nav-path="/settings">模型</a>
+      <a href="/cases" data-nav-path="/cases">案件工作台</a>
+      <a href="/samples" data-nav-path="/samples">文书样本</a>
+      <a href="/settings" data-nav-path="/settings">系统设置</a>
     </nav>
     <div class="nav-actions"><button class="theme-toggle" type="button" data-theme-toggle><span class="theme-option theme-option-light">浅色</span><span class="theme-option theme-option-dark">深色</span></button></div>
   </div>
 </header>
 <main class="page-shell narrow">
+  <nav class="page-return" aria-label="返回导航">
+    <a class="btn btn-secondary back-link" href="/cases"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m12 5-7 7 7 7M5 12h14"/></svg>返回案件列表</a>
+  </nav>
   <section class="page-intro">
-    <p class="page-kicker">模型与数据边界</p>
-    <h1>选择适合本案的分析模型。</h1>
+    <h1>系统设置</h1>
     <p>只有律师确认放行的脱敏内容会发送给当前供应商。API Key 仅保存在本机。</p>
   </section>
 
