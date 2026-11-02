@@ -45,7 +45,7 @@ async function createSample({ type, title, text, fileName, fileBase64, confirmed
         text = (await extractCaseFile(fileName, fileBase64)).text;
       } catch (error) {
         if (/未能从案卷文件中提取文字/.test(error.message)) {
-          throw new Error('未能从样本文件中提取文字，请上传含可复制文本的文件或粘贴正文');
+          throw new Error('未能从样本文件中提取文字，请上传含可复制文本的文件或粘贴正文', { cause: error });
         }
         throw error;
       }

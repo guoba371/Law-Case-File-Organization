@@ -2,6 +2,10 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
+const { config, validateConfig } = require('./config');
+const { logger } = require('./logger');
+const { createErrorHandler } = require('./errors');
+const { createRateLimiters } = require('./rate-limiter');
 const { listProviders, updateProviders, testProvider } = require('./providers');
 const { createSample, listSamples, deleteSample } = require('./samples');
 const { generateDocument, generateCaseDocument, getDocument, listDocuments, deleteDocument, updateSectionStatus, reviseSectionContent, getDocumentTypes } = require('./documents');
@@ -14,9 +18,9 @@ const { createCaseQueue } = require('./case-queue');
 const { renderCaseDiagram } = require('./case-diagrams');
 const { createFeedbackService } = require('./feedback');
 
-const HOST = '127.0.0.1';
-const PORT = Number(process.env.PORT) || 3000;
-const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+const HOST = config.server.host;
+const PORT = config.server.port;
+const PUBLIC_DIR = config.paths.public;
 const PAGE = path.join(PUBLIC_DIR, 'settings.html');
 const SAMPLES_PAGE = path.join(PUBLIC_DIR, 'samples.html');
 const DOCUMENTS_PAGE = path.join(PUBLIC_DIR, 'documents.html');
@@ -78,21 +82,30 @@ function streamFile(res, filePath, contentType) {
   return fs.createReadStream(filePath).pipe(res);
 }
 
-function errorStatus(error) {
-  if (/案件不存在|案件编号无效/.test(error.message)) return 404;
-  return 400;
-}
-
 function createHttpServer(dependencies = {}) {
   const casesService = dependencies.casesService || createCasesService({ store, upload });
   const caseUpload = dependencies.caseUpload || upload;
   const caseQueue = dependencies.caseQueue || createCaseQueue({ store, processCase: casesService.processCase });
   const feedbackService = dependencies.feedbackService || createFeedbackService();
+  const rateLimiters = dependencies.rateLimiters || createRateLimiters();
+  const errorHandler = createErrorHandler();
 
   return http.createServer(async (req, res) => {
+    const startTime = Date.now();
+
     try {
+      // 应用速率限制（针对 API 路径）
       const url = new URL(req.url, `http://${HOST}`);
       const { pathname } = url;
+
+      if (pathname.startsWith('/api/')) {
+        // 根据路径选择限制器
+        let limiter = rateLimiters.general;
+        if (pathname.includes('/files/')) limiter = rateLimiters.upload;
+        else if (pathname.includes('/process') || pathname.includes('/documents')) limiter = rateLimiters.llm;
+
+        limiter.check(req);
+      }
       if (req.method === 'GET' && pathname === '/app.css') return streamFile(res, APP_CSS, 'text/css; charset=utf-8');
       if (req.method === 'GET' && pathname === '/app.js') return streamFile(res, APP_JS, 'text/javascript; charset=utf-8');
       if (req.method === 'GET' && pathname === '/cases.js') return streamFile(res, CASES_JS, 'text/javascript; charset=utf-8');
@@ -101,6 +114,15 @@ function createHttpServer(dependencies = {}) {
       if (req.method === 'GET' && ['/people-graph.js', '/people-graph-data.js'].includes(pathname)) return streamFile(res, path.join(PUBLIC_DIR, pathname.slice(1)), 'text/javascript; charset=utf-8');
       if (req.method === 'GET' && pathname === '/vendor/g6.min.js') return streamFile(res, path.join(__dirname, '..', 'node_modules', '@antv', 'g6', 'dist', 'g6.min.js'), 'text/javascript; charset=utf-8');
       if (req.method === 'GET' && pathname === '/') return streamFile(res, CASES_PAGE, 'text/html; charset=utf-8');
+      if (req.method === 'GET' && pathname === '/health') {
+        return send(res, 200, {
+          status: 'ok',
+          timestamp: new Date().toISOString(),
+          uptime: process.uptime(),
+          environment: config.server.env,
+          version: require('../package.json').version,
+        });
+      }
       if (req.method === 'GET' && pathname === '/settings') return streamFile(res, PAGE, 'text/html; charset=utf-8');
       if (req.method === 'GET' && pathname === '/cases') return streamFile(res, CASES_PAGE, 'text/html; charset=utf-8');
       if (req.method === 'GET' && /^\/cases\/[^/]+$/.test(pathname)) return streamFile(res, CASE_WORKSPACE_PAGE, 'text/html; charset=utf-8');
@@ -176,21 +198,83 @@ function createHttpServer(dependencies = {}) {
 
       return send(res, 404, { error: 'Not found' });
     } catch (error) {
-      return send(res, errorStatus(error), { error: error.message });
+      errorHandler(error, req, res);
+    } finally {
+      // 记录请求日志
+      const duration = Date.now() - startTime;
+      logger.logRequest(req, res, duration);
     }
   });
 }
 
 if (require.main === module) {
-  const casesService = createCasesService({ store, upload });
-  const caseQueue = createCaseQueue({ store, processCase: casesService.processCase });
-  caseQueue.recover();
-  const server = createHttpServer({ casesService, caseUpload: upload, caseQueue });
-  server.listen(PORT, HOST, () => {
-    console.log(`模型供应商设置：http://${HOST}:${PORT}/settings`);
-    console.log(`参考样本：http://${HOST}:${PORT}/samples`);
-    console.log(`文书生成：http://${HOST}:${PORT}/documents`);
-  });
+  try {
+    // 验证配置
+    validateConfig();
+    logger.info('配置验证通过');
+
+    const casesService = createCasesService({ store, upload });
+    const caseQueue = createCaseQueue({ store, processCase: casesService.processCase });
+    const rateLimiters = createRateLimiters();
+
+    // 恢复未完成的任务
+    caseQueue.recover();
+    logger.info('任务队列已恢复');
+
+    const server = createHttpServer({ casesService, caseUpload: upload, caseQueue, rateLimiters });
+
+    server.listen(PORT, HOST, () => {
+      logger.info(`服务器启动成功 - 环境: ${config.server.env}`, {
+        host: HOST,
+        port: PORT,
+      });
+      console.log(`\n✅ 服务已启动`);
+      console.log(`📋 案件管理：http://${HOST}:${PORT}/cases`);
+      console.log(`⚙️  模型设置：http://${HOST}:${PORT}/settings`);
+      console.log(`📄 参考样本：http://${HOST}:${PORT}/samples`);
+      console.log(`📝 文书生成：http://${HOST}:${PORT}/documents\n`);
+    });
+
+    // 优雅关闭
+    const shutdown = (signal) => {
+      logger.info(`收到 ${signal} 信号，开始优雅关闭...`);
+
+      server.close(() => {
+        logger.info('HTTP 服务器已关闭');
+
+        // 停止速率限制器清理
+        Object.values(rateLimiters).forEach(limiter => limiter.stop());
+        logger.info('速率限制器已停止');
+
+        logger.info('服务器已完全关闭');
+        process.exit(0);
+      });
+
+      // 如果 10 秒内没有正常关闭，强制退出
+      setTimeout(() => {
+        logger.error('无法优雅关闭，强制退出');
+        process.exit(1);
+      }, 10000);
+    };
+
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
+
+    // 捕获未处理的异常
+    process.on('uncaughtException', (error) => {
+      logger.error('未捕获的异常', { error: error.message, stack: error.stack });
+      process.exit(1);
+    });
+
+    process.on('unhandledRejection', (reason, promise) => {
+      logger.error('未处理的 Promise 拒绝', { reason, promise });
+    });
+
+  } catch (error) {
+    logger.error('服务器启动失败', { error: error.message, stack: error.stack });
+    console.error(`\n❌ 启动失败: ${error.message}\n`);
+    process.exit(1);
+  }
 }
 
 module.exports = { createHttpServer, readBuffer, readJson };

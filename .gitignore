@@ -1,9 +1,52 @@
+# 依赖
 node_modules/
+
+# 环境变量
 .env
 .env.*
 !.env.example
+
+# 数据文件（包含敏感案件信息）
 data/
+!data/.gitkeep
+
+# 临时文件
 .tmp-export/
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
+
+# 日志文件
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 操作系统文件
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDE 配置
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.iml
+
+# 测试覆盖率
+coverage/
+.nyc_output/
+
+# 调试脚本（临时文件）
 debug.js
 final_verify.js
 fix_documents.js
@@ -13,4 +56,10 @@ test-api.js
 upgrade_max_tokens.js
 verify_complete.js
 verify_generation.js
-*.bak
+
+# 构建输出
+dist/
+build/
+
+# 其他
+.cache/
