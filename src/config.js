@@ -4,7 +4,7 @@ const path = require('node:path');
 const config = {
   // 服务器配置
   server: {
-    host: '127.0.0.1',
+    host: process.env.HOST || '127.0.0.1',
     port: Number(process.env.PORT) || 3000,
     env: process.env.NODE_ENV || 'development',
   },
