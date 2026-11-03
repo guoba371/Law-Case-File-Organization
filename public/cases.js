@@ -7,6 +7,7 @@
   const MAX_FEEDBACK_IMAGE_SIZE = 5 * 1024 * 1024;
   const FEEDBACK_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
   let feedbackFiles = [];
+  let selectedFiles = [];
 
   function escapeHtml(value) {
     return String(value || '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[char]);
@@ -72,11 +73,44 @@
     if (total > MAX_TOTAL_SIZE) throw new Error('单案件文件合计不能超过 2GB');
   }
 
-  function renderSelectedFiles(files) {
+  function fileKey(file) {
+    return `${file.name}|${file.size}|${file.lastModified}`;
+  }
+
+  function renderSelectedFiles() {
     const target = document.getElementById('fileSelection');
-    if (!files.length) { target.textContent = '尚未选择材料'; return; }
-    const total = files.reduce((sum, file) => sum + file.size, 0);
-    target.textContent = `已选择 ${files.length} 份材料，共 ${formatBytes(total)}`;
+    if (!selectedFiles.length) { target.textContent = '尚未选择材料'; return; }
+    const total = selectedFiles.reduce((sum, file) => sum + file.size, 0);
+    const summary = document.createElement('div');
+    summary.className = 'file-selection-summary';
+    const text = document.createElement('span');
+    text.textContent = `已选择 ${selectedFiles.length} 份材料，共 ${formatBytes(total)}`;
+    const clear = document.createElement('button');
+    clear.type = 'button';
+    clear.className = 'file-remove';
+    clear.textContent = '清空';
+    clear.addEventListener('click', () => { selectedFiles = []; renderSelectedFiles(); });
+    summary.append(text, clear);
+    const list = document.createElement('div');
+    list.className = 'selected-file-list';
+    selectedFiles.forEach((file, index) => {
+      const row = document.createElement('div');
+      row.className = 'selected-file-row';
+      const name = document.createElement('span');
+      name.textContent = file.name;
+      name.title = file.name;
+      const size = document.createElement('em');
+      size.textContent = formatBytes(file.size);
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'file-remove';
+      remove.textContent = '移除';
+      remove.setAttribute('aria-label', `移除 ${file.name}`);
+      remove.addEventListener('click', () => { selectedFiles = selectedFiles.filter((_, position) => position !== index); renderSelectedFiles(); });
+      row.append(name, size, remove);
+      list.append(row);
+    });
+    target.replaceChildren(summary, list);
   }
 
   async function uploadFileInChunks(caseId, file, onProgress) {
@@ -97,7 +131,7 @@
 
   async function createAndUploadCase(event) {
     event.preventDefault();
-    const files = Array.from(document.getElementById('caseFiles').files || []);
+    const files = selectedFiles.slice();
     const redactedConfirm = document.getElementById('redactedConfirm');
     const status = document.getElementById('uploadStatus');
     const button = document.getElementById('createCaseButton');
@@ -226,7 +260,16 @@
     }
     newCaseButton.addEventListener('click', () => toggleNewCase(true));
     document.getElementById('cancelNewCaseButton').addEventListener('click', () => toggleNewCase(false));
-    document.getElementById('caseFiles').addEventListener('change', (event) => renderSelectedFiles(Array.from(event.target.files || [])));
+    document.getElementById('caseFiles').addEventListener('change', (event) => {
+      const known = new Set(selectedFiles.map(fileKey));
+      for (const file of Array.from(event.target.files || [])) {
+        if (known.has(fileKey(file))) continue;
+        known.add(fileKey(file));
+        selectedFiles.push(file);
+      }
+      event.target.value = '';
+      renderSelectedFiles();
+    });
     document.getElementById('caseForm').addEventListener('submit', createAndUploadCase);
     const feedbackDialog = document.getElementById('feedbackDialog');
     document.getElementById('feedbackTrigger').addEventListener('click', () => {

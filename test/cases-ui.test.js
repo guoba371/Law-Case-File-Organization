@@ -24,6 +24,18 @@ test('案件页支持多文件分片上传并清晰展示容量规则', () => {
   new Function(script);
 });
 
+test('案卷材料逐份列出，可单独移除或清空', () => {
+  const html = fs.readFileSync(path.join(publicDir, 'cases.html'), 'utf8');
+  const script = fs.readFileSync(path.join(publicDir, 'cases.js'), 'utf8');
+  assert.doesNotMatch(html, /id="caseFiles"[^>]*required/);
+  assert.match(script, /let selectedFiles = \[\]/);
+  assert.match(script, /selected-file-row/);
+  assert.match(script, /textContent = '移除'/);
+  assert.match(script, /textContent = '清空'/);
+  assert.match(script, /const files = selectedFiles\.slice\(\)/);
+  new Function(script);
+});
+
 test('所有主页面仅提供案件工作台、文书样本和系统设置三个入口', () => {
   for (const name of ['cases.html', 'case-workspace.html', 'documents.html', 'samples.html', 'settings.html']) {
     const html = fs.readFileSync(path.join(publicDir, name), 'utf8');
